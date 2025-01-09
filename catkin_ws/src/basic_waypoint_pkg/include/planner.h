@@ -18,9 +18,7 @@ public:
 
     void setMaxSpeed(double max_v);
 
-    bool planTrajectory(const Eigen::VectorXd& goal_pos,
-                        const Eigen::VectorXd& goal_vel,
-                        mav_trajectory_generation::Trajectory* trajectory);
+    bool planTrajectory(mav_trajectory_generation::Trajectory* trajectory);
 
     bool planTrajectory(const Eigen::VectorXd& goal_pos,
                         const Eigen::VectorXd& goal_vel,

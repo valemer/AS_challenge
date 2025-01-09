@@ -51,9 +51,7 @@ void BasicPlanner::setMaxSpeed(const double max_v) {
 
 // Plans a trajectory from the current position to the a goal position and velocity
 // we neglect attitude here for simplicity
-bool BasicPlanner::planTrajectory(const Eigen::VectorXd& goal_pos,
-                                    const Eigen::VectorXd& goal_vel,
-                                    mav_trajectory_generation::Trajectory* trajectory) {
+bool BasicPlanner::planTrajectory(mav_trajectory_generation::Trajectory* trajectory) {
 
     // 3 Dimensional trajectory => through carteisan space, no orientation
     const int dimension = 3;
@@ -68,7 +66,7 @@ bool BasicPlanner::planTrajectory(const Eigen::VectorXd& goal_pos,
     // we have 2 vertices:
     // Start = current position
     // end = desired position and velocity
-    mav_trajectory_generation::Vertex start(dimension), middle(dimension), end(dimension);
+    mav_trajectory_generation::Vertex start(dimension), middle(dimension);
 
 
     /******* Configure start point *******/
@@ -101,11 +99,13 @@ bool BasicPlanner::planTrajectory(const Eigen::VectorXd& goal_pos,
 
     // Check and load the vector of vectors
     if (config["waypoints"]) {
-        for (const auto& waypoint : config["waypoints"]) {
+        for (auto it = config["waypoints"].begin(); it != config["waypoints"].end(); ++it) {
+            const auto& waypoint = *it;
+
             int i = 0;
             Eigen::Vector3d pos;
-            int vel = -1;
-            int acc = -1;
+            double vel = -1;
+            double acc = -1;
             for (const auto& value : waypoint) {
                 if (i < 3)
                     pos[i] = value.as<double>();
@@ -115,28 +115,40 @@ bool BasicPlanner::planTrajectory(const Eigen::VectorXd& goal_pos,
                     acc = value.as<double>();
                 i++;
             }
-            middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, pos);
-            if (vel == 0) {
+            // Check if it's the last element
+            if (std::next(it) != config["waypoints"].end()) {
+                middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, pos);
+                if (vel == 0) {
+                    Eigen::Vector3d vel_vec;
+                    vel_vec << 0.0, 0.0, 0.0;
+                    middle.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY, vel_vec);
+                }
+
+                if (acc == 0) {
+                    Eigen::Vector3d acc_vec;
+                    acc_vec << 0.0, 0.0, 0.0;
+                    middle.addConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, acc_vec);
+                }
+
+                vertices.push_back(middle);
+
+                if (vel == 0) {
+                    middle.removeConstraint(mav_trajectory_generation::derivative_order::VELOCITY);
+                }
+                if (acc == 0) {
+                    middle.removeConstraint(mav_trajectory_generation::derivative_order::ACCELERATION);
+                }
+            } else {
+                /******* Configure end point *******/
+                // set end point constraints to desired position and set all derivatives to zero
+                middle.makeStartOrEnd(pos,
+                                   derivative_to_optimize);
                 Eigen::Vector3d vel_vec;
-                vel_vec << 0.0,0.0,0.0;
-                middle.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY, vel_vec);
+                vel_vec << 0.0, 0.0, 0.0;
+                middle.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
+                                  vel_vec);
+                vertices.push_back(middle);
             }
-
-            if (acc == 0) {
-                Eigen::Vector3d acc_vec;
-                acc_vec << 0.0,0.0,0.0;
-                middle.addConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, acc_vec);
-            }
-
-            vertices.push_back(middle);
-
-            if (vel == 0) {
-                middle.removeConstraint(mav_trajectory_generation::derivative_order::VELOCITY);
-            }
-            if (acc == 0) {
-                middle.removeConstraint(mav_trajectory_generation::derivative_order::ACCELERATION);
-            }
-
         }
     }
     //
@@ -144,18 +156,6 @@ bool BasicPlanner::planTrajectory(const Eigen::VectorXd& goal_pos,
     // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
     //                                 end
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    /******* Configure end point *******/
-    // set end point constraints to desired position and set all derivatives to zero
-    end.makeStartOrEnd(goal_pos,
-                       derivative_to_optimize);
-
-    // set start point's velocity to be constrained to current velocity
-    end.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
-                      goal_vel);
-
-    // add waypoint to list
-    vertices.push_back(end);
 
     // setimate initial segment times
     std::vector<double> segment_times;

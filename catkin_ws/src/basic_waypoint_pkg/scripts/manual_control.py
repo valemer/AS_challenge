@@ -86,22 +86,23 @@ def on_press(key):
     """Handle keyboard input to publish new trajectories."""
     try:
         if hasattr(key, 'char') and key.char:
+            mul = 5
             if key.char == 'w':  # Move forward
-                publish_trajectory(1.0, 0.0, 0.0, 0.0)
+                publish_trajectory(mul, 0.0, 0.0, 0.0)
             elif key.char == 's':  # Move backward
-                publish_trajectory(-1.0, 0.0, 0.0, 0.0)
+                publish_trajectory(-mul, 0.0, 0.0, 0.0)
             elif key.char == 'a':  # Move left
-                publish_trajectory(0.0, 1.0, 0.0, 0.0)
+                publish_trajectory(0.0, mul, 0.0, 0.0)
             elif key.char == 'd':  # Move right
-                publish_trajectory(0.0, -1.0, 0.0, 0.0)
+                publish_trajectory(0.0, -mul, 0.0, 0.0)
             elif key.char == 'q':  # Turn left (yaw +1 radian)
                 publish_trajectory(0.0, 0.0, 0.0, 1.0)
             elif key.char == 'e':  # Turn right (yaw -1 radian)
                 publish_trajectory(0.0, 0.0, 0.0, -1.0)
             elif key.char == 'r':  # Move up
-                publish_trajectory(0.0, 0.0, 1.0, 0.0)
+                publish_trajectory(0.0, 0.0, mul, 0.0)
             elif key.char == 'f':  # Move down
-                publish_trajectory(0.0, 0.0, -1.0, 0.0)
+                publish_trajectory(0.0, 0.0, -mul, 0.0)
     except Exception as e:
         rospy.logerr(f"Error processing key input: {e}")
 
