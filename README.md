@@ -21,3 +21,11 @@ cd catkin_ws
 . devel/setup.bash
 roslaunch config_rviz rviz.launch
 ```
+
+## Start manual control
+```
+cd catkin_ws
+. devel/setup.bash
+rosrun basic_waypoint_pkg manual_control.py
+```
+
