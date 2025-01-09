@@ -1,0 +1,4 @@
+<launch>
+    <!-- Start RViz with a specific config -->
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find config_rviz)/config/config.rviz" output="screen" />
+</launch>
