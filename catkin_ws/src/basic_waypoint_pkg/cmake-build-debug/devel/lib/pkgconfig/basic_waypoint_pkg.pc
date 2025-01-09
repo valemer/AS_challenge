@@ -1,8 +1,0 @@
-prefix=/home/valentin/as/autsys-2024-trajectory-generation-valemer/catkin_ws/src/basic_waypoint_pkg/cmake-build-debug/devel
-
-Name: basic_waypoint_pkg
-Description: Description of basic_waypoint_pkg
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 

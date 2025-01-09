@@ -64,7 +64,9 @@
   <build_export_depend>mav_trajectory_generation_ros</build_export_depend>
   <build_export_depend>mav_visualization</build_export_depend>
   <build_export_depend>roslib</build_export_depend>
-    <build_export_depend>yaml-cpp</build_export_depend>
+  <build_export_depend>yaml-cpp</build_export_depend>
+  <exec_depend>python3</exec_depend>
+  <exec_depend>rospy</exec_depend>
   <exec_depend>eigen_catkin</exec_depend>
   <exec_depend>mav_msgs</exec_depend>
   <exec_depend>mav_planning_msgs</exec_depend>
@@ -72,7 +74,7 @@
   <exec_depend>mav_trajectory_generation_ros</exec_depend>
   <exec_depend>mav_visualization</exec_depend>
   <exec_depend>roslib</exec_depend>
-    <exec_depend>yaml_cpp_catkin</exec_depend>
+  <exec_depend>yaml_cpp_catkin</exec_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

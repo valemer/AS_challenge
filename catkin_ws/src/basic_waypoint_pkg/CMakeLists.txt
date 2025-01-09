@@ -208,6 +208,12 @@ include_directories(
 #   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 # )
 
+# Install Python scripts
+catkin_install_python(PROGRAMS
+        scripts/manual_control.py
+        DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 #############
 ## Testing ##
 #############
