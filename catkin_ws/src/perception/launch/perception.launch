@@ -12,13 +12,24 @@
     </node>
 
     <!-- VoxelGrid Filter Nodelet -->
+    <node pkg="nodelet" type="nodelet" name="pc_filter"
+          args="load pcl/VoxelGrid nodelet_manager">
+        <param name="leaf_size" value="0.01" />
+        <param name="filter_field_name" value="x" />
+        <param name="filter_limit_min" value="-5.0" />
+        <param name="filter_limit_max" value="5.0" />
+        <remap from="~input" to="/camera/depth/points" />
+        <remap from="~output" to="/camera/depth/points_filtered" />
+    </node>
+
+    <!-- VoxelGrid Filter Nodelet -->
     <node pkg="nodelet" type="nodelet" name="voxel_grid_filter"
           args="load pcl/VoxelGrid nodelet_manager">
         <param name="leaf_size" value="0.01" />
         <param name="filter_field_name" value="z" />
         <param name="filter_limit_min" value="0" />
         <param name="filter_limit_max" value="10.0" />
-        <remap from="~input" to="/camera/depth/points" />
+        <remap from="~input" to="/camera/depth/points_filtered" />
         <remap from="~output" to="/camera/depth/voxel_grid_points" />
     </node>
 </launch>
