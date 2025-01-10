@@ -4,7 +4,10 @@ set -e
 
 # install required pkgs
 sudo apt update
-sudo apt install -y ros-noetic-octomap ros-noetic-octomap-server ros-noetic-pcl-conversions
+sudo apt install -y ros-noetic-depth-image-proc ros-noetic-octomap ros-noetic-octomap-server \
+  ros-noetic-pcl-conversions git-lfs unzip python3-pip
+pip install pynput
+
 
 # build ros ws
 cd ./catkin_ws
@@ -12,6 +15,7 @@ catkin build
 cd ../
 
 # Check if Simulation.x86_64 already exists
+git lfs pull
 if [ ! -f ./catkin_ws/devel/lib/simulation/Simulation.x86_64 ]; then
   echo "Simulation.x86_64 not found. Unzipping simulation files..."
 
