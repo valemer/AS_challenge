@@ -31,7 +31,7 @@ BasicPlanner::BasicPlanner(ros::NodeHandle& nh) :
     pub_trajectory_ = nh.advertise<mav_planning_msgs::PolynomialTrajectory4D>("trajectory", 0);
 
     // subscriber for Odometry
-    sub_odom_ = nh.subscribe("odom", 1, &BasicPlanner::uavOdomCallback, this);
+    sub_odom_ = nh.subscribe("/current_state_est", 1, &BasicPlanner::uavOdomCallback, this);
 }
 
 // Callback to get current Pose of UAV
