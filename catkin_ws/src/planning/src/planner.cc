@@ -7,24 +7,11 @@ BasicPlanner::BasicPlanner(ros::NodeHandle& nh) :
         max_v_(5),
         max_a_(2),
         current_velocity_(Eigen::Vector3d::Zero()),
-        current_pose_(Eigen::Affine3d::Identity()) {
+        current_pose_(Eigen::Affine3d::Identity()),
+        hz(10.0){
 
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    //  To Do: Load Trajectory Parameters from file
-    // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~  ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-    //
-    // In this section, you need to use node handler to get max v and max a params
-    //
-    // ~~~~ begin solution
-    //
-    //     **** FILL IN HERE ***
     nh.getParam("dynamic_params/max_v", max_v_);
     nh.getParam("dynamic_params/max_a", max_a_);
-    //
-    // ~~~~ end solution
-    // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-    //                                 end
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // create publisher for RVIZ markers
     pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>("trajectory_markers", 0);

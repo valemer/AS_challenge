@@ -35,6 +35,7 @@ private:
     ros::Subscriber sub_odom_;
 
     ros::NodeHandle& nh_;
+    double hz;
     Eigen::Affine3d current_pose_;
     Eigen::Vector3d current_velocity_;
     Eigen::Vector3d current_angular_velocity_;

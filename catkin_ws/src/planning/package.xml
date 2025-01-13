@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>basic_waypoint_pkg</name>
+  <name>planning</name>
   <version>0.0.0</version>
   <description>The basic_waypoint_pkg package</description>
 

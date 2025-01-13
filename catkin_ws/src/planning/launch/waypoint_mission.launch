@@ -1,0 +1,15 @@
+<launch>
+
+    <!--- Trajectory planner -->
+    <node name="planner" pkg="basic_waypoint_pkg" type="basic_waypoint_pkg" output="screen" clear_params = "true">
+        <rosparam command="load" file="$(find basic_waypoint_pkg)/config/trajectory_config.yaml"/>
+    </node>
+
+    <!--- Trajectory sampler -->
+    <node name="sampler" pkg="mav_trajectory_generation_ros" type="trajectory_sampler_node" output="screen">
+        <remap from="path_segments_4D" to="trajectory"/>
+    </node>
+
+    <node name="controller_node" pkg="controller_pkg" type="controller_node"/>
+
+</launch>
