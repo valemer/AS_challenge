@@ -64,6 +64,7 @@ void StateMachine::takeOff() {
     ROS_INFO_NAMED("state_machine", "Close to take-off goal!");
     paths_sent_ = 0;
     state_ = GO;
+    std::this_thread::sleep_for(std::chrono::seconds(5));
   }
 }
 

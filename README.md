@@ -13,6 +13,13 @@ cd catkin_ws
 roslaunch simulation simulation.launch
 ```
 
+## Start Planning
+```
+cd catkin_ws
+. devel/setup.bash
+roslaunch planning planning.launch
+```
+
 ## Start RVIZ
 ```
 cd catkin_ws

@@ -76,73 +76,46 @@ void TrajectoryPlanner::planTrajectory(const fla_msgs::GlobalPath::ConstPtr& glo
     vertices.push_back(start);
 
     /******* Configure trajectory *******/
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    //  To Do: Set up trajectory waypoints
-    // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~  ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-    //
-    // In this section, you need to
-    // - load waypoint definition (pos, vel, acc) per dimension from param file
-    // - dynamically set constraints for each (and only where needed)
-    // - push waypoints to vertices
-    //
-    // ~~~~ begin solution
-    //
-    //     **** FILL IN HERE ***
-    YAML::Node config = YAML::LoadFile(ros::package::getPath("planning") +
-        "/config/state_machine_config.yaml");
+    auto points = globalPath->points;
 
-    // Check and load the vector of vectors
-    if (config["takeoff"]) {
-        for (auto it = config["takeoff"].begin(); it != config["takeoff"].end(); ++it) {
-            const auto& waypoint = *it;
-
-            int i = 0;
-            Eigen::Vector4d pos;
-            double vel = -1.0;
-            double acc = -1.0;
-            for (const auto& value : waypoint) {
-                if (i < 4)
-                    pos[i] = value.as<double>();
-                else if (i < 5)
-                    vel = value.as<double>();
-                else
-                    acc = value.as<double>();
-                i++;
-            }
-            // Check if it's the last element
-            if (std::next(it) != config["takeoff"].end()) {
-                middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, pos);
-                if (vel == 0) {
-                    Eigen::Vector4d vel_vec;
-                    vel_vec << 0.0, 0.0, 0.0, 0.0;
-                    middle.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY, vel_vec);
-                }
-
-                if (acc == 0) {
-                    Eigen::Vector4d acc_vec;
-                    acc_vec << 0.0, 0.0, 0.0, 0.0;
-                    middle.addConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, acc_vec);
-                }
-
-                vertices.push_back(middle);
-
-                if (vel == 0) {
-                    middle.removeConstraint(mav_trajectory_generation::derivative_order::VELOCITY);
-                }
-                if (acc == 0) {
-                    middle.removeConstraint(mav_trajectory_generation::derivative_order::ACCELERATION);
-                }
-            } else {
-                /******* Configure end point *******/
-                // set end point constraints to desired position and set all derivatives to zero
-                middle.makeStartOrEnd(pos,
-                                   derivative_to_optimize);
+    for (size_t i = 0; i < points.size(); ++i) {
+        Eigen::Vector4d pos;
+        pos << points[i].point.x, points[i].point.y, points[i].point.z, points[i].orientation;
+        double vel = points[i].velocity;
+        double acc = points[i].acceleration;
+        // Check if it's the last element
+        if (i < points.size() - 1) {
+            middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, pos);
+            if (vel == 0) {
                 Eigen::Vector4d vel_vec;
                 vel_vec << 0.0, 0.0, 0.0, 0.0;
-                middle.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
-                                  vel_vec);
-                vertices.push_back(middle);
+                middle.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY, vel_vec);
             }
+
+            if (acc == 0) {
+                Eigen::Vector4d acc_vec;
+                acc_vec << 0.0, 0.0, 0.0, 0.0;
+                middle.addConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, acc_vec);
+            }
+
+            vertices.push_back(middle);
+
+            if (vel == 0) {
+                middle.removeConstraint(mav_trajectory_generation::derivative_order::VELOCITY);
+            }
+            if (acc == 0) {
+                middle.removeConstraint(mav_trajectory_generation::derivative_order::ACCELERATION);
+            }
+        } else {
+            /******* Configure end point *******/
+            // set end point constraints to desired position and set all derivatives to zero
+            middle.makeStartOrEnd(pos,
+                               derivative_to_optimize);
+            Eigen::Vector4d vel_vec;
+            vel_vec << 0.0, 0.0, 0.0, 0.0;
+            middle.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
+                              vel_vec);
+            vertices.push_back(middle);
         }
     }
     //
