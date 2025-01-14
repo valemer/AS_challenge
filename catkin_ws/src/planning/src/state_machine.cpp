@@ -1,5 +1,7 @@
 #include "state_machine.h"
 
+#include <thread>
+
 #include "yaml-cpp/yaml.h"
 #include "ros/package.h"
 #include "std_srvs/Empty.h"
@@ -53,7 +55,8 @@ bool StateMachine::closeToGoal() {
 }
 
 void StateMachine::takeOff() {
-  if (paths_sent_ < 3) {
+  if (paths_sent_ < 1) {
+      std::this_thread::sleep_for(std::chrono::seconds(5));
       ROS_INFO_NAMED("state_machine", "Start take-off!");
       loadAndSendPath("takeoff");
       paths_sent_++;
@@ -87,12 +90,12 @@ void StateMachine::loadAndSendPath(std::string path) {
     fla_msgs::GlobalPath global_path;
     fla_msgs::GlobalPoint global_point;
     for (const auto& point : config[path]) {
-        global_point.point.x = point[0].as<double>();
-        global_point.point.y = point[1].as<double>();
-        global_point.point.z = point[2].as<double>();
-        global_point.orientation = point[3].as<double>();
-        global_point.velocity = point[4].as<double>();
-        global_point.acceleration = point[5].as<double>();
+        global_point.point.x = point[0].as<float>();
+        global_point.point.y = point[1].as<float>();
+        global_point.point.z = point[2].as<float>();
+        global_point.orientation = point[3].as<float>();
+        global_point.velocity = point[4].as<float>();
+        global_point.acceleration = point[5].as<float>();
         global_path.points.push_back(global_point);
     }
     pub_global_path_.publish(global_path);
