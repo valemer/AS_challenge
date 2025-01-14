@@ -1,0 +1,20 @@
+<launch>
+
+    <!--- Trajectory planner -->
+    <node name="trajectory_planner" pkg="planning" type="trajectory_planner" output="screen" clear_params = "true">
+        <rosparam command="load" file="$(find planning)/config/trajectory_planner_config.yaml"/>
+    </node>
+
+
+    <!--- Trajectory sampler -->
+    <node name="sampler" pkg="mav_trajectory_generation_ros" type="trajectory_sampler_node" output="screen">
+        <remap from="path_segments_4D" to="trajectory"/>
+    </node>
+
+    <!--- State Machine -->
+    <node name="state_machine" pkg="planning" type="state_machine" output="screen" clear_params = "true">
+        <rosparam command="load" file="$(find planning)/config/state_machine_config.yaml"/>
+    </node>
+
+
+</launch>

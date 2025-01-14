@@ -19,12 +19,16 @@ find_package(catkin REQUIRED COMPONENTS
   mav_visualization
   roslib
   yaml_cpp_catkin
+  fla_msgs
 )
 catkin_simple(ALL_DEPS_REQUIRED)
 
-cs_add_executable(basic_waypoint_pkg
-        src/planner.cc
-        src/planner_node.cc
+cs_add_executable(state_machine
+        src/state_machine.cpp
+)
+
+cs_add_executable(trajectory_planner
+        src/trajectory_planner_node.cc
         )
 
 cs_install()

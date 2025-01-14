@@ -14,6 +14,8 @@ add_message_files(
   FlightStateTransition.msg
   FlightEvent.msg
   FlightCommand.msg
+  GlobalPoint.msg
+  GlobalPath.msg
   JoyDef.msg
   ControlMessage.msg
   NodeList.msg
