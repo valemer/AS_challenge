@@ -8,10 +8,21 @@ project(perception)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  rospy
-  std_msgs
+        catkin_simple
+        roscpp
+        rospy
+        std_msgs
+
 )
+
+catkin_simple(ALL_DEPS_REQUIRED)
+
+cs_add_executable(lantern_detection
+        src/LanternDetection.cpp
+)
+
+cs_install()
+cs_export()
 
 
 
