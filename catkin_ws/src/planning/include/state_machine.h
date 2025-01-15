@@ -1,21 +1,17 @@
 #pragma once
 
-#include <iostream>
 #include <ros/ros.h>
-#include <Eigen/Dense>
 #include <nav_msgs/Odometry.h>
 #include <eigen_conversions/eigen_msg.h>
 #include "fla_msgs/GlobalPath.h"
-#include <mav_trajectory_generation/polynomial_optimization_nonlinear.h>
-#include <mav_trajectory_generation_ros/ros_visualization.h>
-#include <mav_trajectory_generation_ros/ros_conversions.h>
 
 enum State {
     TAKE_OFF = 0,
     GO = 1,
-    EXPLORED = 2,
+    EXPLORE = 2,
     FLY_BACK = 3,
-    STOP = 4
+    LAND = 4,
+    STOP = 5
 };
 
 class StateMachine {
@@ -26,7 +22,9 @@ public:
 
     void mainLoop(const ros::TimerEvent& t);
 
-    bool publishPath(const fla_msgs::GlobalPath& trajectory);
+    void saveWayBack();
+
+    void publishPath(const std::list<Eigen::Vector4d>& path);
 
     bool closeToGoal();
 
@@ -34,12 +32,16 @@ public:
 
     void flyToCave();
 
-    void loadAndSendPath(std::string path);
+    void loadAndSendPath(const std::string& path);
+
+    void flyBack();
+
+    void land();
 
 private:
     ros::Publisher pub_global_path_;
     ros::Subscriber sub_odom_;
-    ros::ServiceClient client;
+    ros::ServiceClient reset_octomap;
 
 
     ros::Timer timer_;
@@ -51,6 +53,13 @@ private:
 
     State state_ = TAKE_OFF;
 
-    Eigen::Vector3f current_goal_;
-    int paths_sent_ = 0;
+    std::list<Eigen::Vector4d> path_land_;
+    std::list<Eigen::Vector4d> path_back_;
+    Eigen::Vector3d current_goal_;
+    bool paths_sent_ = false;
+
+    // params
+    int time_between_states_s;
+    double min_dis_waypoint_back;
+    double max_dis_close_to_goal;
 };
