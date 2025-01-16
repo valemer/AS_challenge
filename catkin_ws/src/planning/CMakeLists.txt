@@ -3,8 +3,11 @@ project(planning)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
-set(CMAKE_MACOSX_RPATH 0)
-add_definitions(-std=c++11)
+# set(CMAKE_MACOSX_RPATH 0)
+# add_definitions(-std=c++11)
+
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -21,6 +24,16 @@ find_package(catkin REQUIRED COMPONENTS
   yaml_cpp_catkin
   fla_msgs
 )
+
+find_package( PCL 1.7 REQUIRED )
+# [C/C++]>[General]>[Additional Include Directories]
+include_directories( ${PCL_INCLUDE_DIRS} )
+
+# [C/C++]>[Preprocessor]>[Preprocessor Definitions]
+add_definitions( ${PCL_DEFINITIONS} )
+# [Linker]>[General]>[Additional Library Directories]
+link_directories( ${PCL_LIBRARY_DIRS} )
+
 catkin_simple(ALL_DEPS_REQUIRED)
 
 cs_add_executable(state_machine
@@ -33,6 +46,10 @@ cs_add_executable(trajectory_planner
 
 cs_install()
 cs_export()
+
+# [Linker]>[Input]>[Additional Dependencies]
+target_link_libraries( state_machine ${PCL_LIBRARIES} )
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -138,7 +155,11 @@ catkin_package(
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
 )
+
+# link_directories(${PCL_LIBRARY_DIRS})
+# add_definitions(${PCL_DEFINITIONS})
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}

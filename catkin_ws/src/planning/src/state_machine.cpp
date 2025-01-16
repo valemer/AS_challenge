@@ -2,24 +2,33 @@
 
 #include <thread>
 #include <mav_msgs/common.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
 
 #include "yaml-cpp/yaml.h"
 #include "ros/package.h"
 #include "std_srvs/Empty.h"
+#include "geometry_msgs/Point.h"
 
 StateMachine::StateMachine() :
         hz_(10.0),
         current_velocity_(Eigen::Vector3d::Zero()),
         current_pose_(Eigen::Affine3d::Identity()),
+        point_cloud_(new pcl::PointCloud<pcl::PointXYZ>()),
         time_between_states_s(2),
         min_dis_waypoint_back(5.0),
         max_dis_close_to_goal(1.0)
 {
     // publisher
     pub_global_path_ = nh_.advertise<fla_msgs::GlobalPath>("/global_path", 0);
+    pub_start_points_ = nh_.advertise<geometry_msgs::Point>("/start_points", 1);
+    pub_goal_points_ = nh_.advertise<geometry_msgs::Point>("/goal_points", 1);
 
     // subscriber
     sub_odom_ = nh_.subscribe("/current_state_est", 1, &StateMachine::uavOdomCallback, this);
+    sub_octomap_ = nh_.subscribe("/octomap_point_cloud_centers", 1, &StateMachine::octomapCallback, this);
 
     // main loop timer
     timer_ = nh_.createTimer(ros::Rate(hz_), &StateMachine::mainLoop, this);
@@ -44,6 +53,11 @@ void StateMachine::uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom) {
     tf::vectorMsgToEigen(odom->twist.twist.linear, current_velocity_);
 }
 
+void StateMachine::octomapCallback(const sensor_msgs::PointCloud2::ConstPtr& msg) {
+    pcl::fromROSMsg(*msg, *point_cloud_);
+    ROS_INFO("Received OctoMap PointCloud2 with %lu points.", point_cloud_->points.size());
+}
+
 void StateMachine::mainLoop(const ros::TimerEvent& t) {
   switch(state_)
   {
@@ -55,7 +69,7 @@ void StateMachine::mainLoop(const ros::TimerEvent& t) {
       break;
   case EXPLORE:
       // TODO
-      saveWayBack();
+      planFarthestPoint();
       break;
   case FLY_BACK:
       flyBack();
@@ -121,7 +135,7 @@ void StateMachine::flyToCave() {
         paths_sent_ = true;
     } else if (closeToGoal()) {
         paths_sent_ = false;
-        state_ = FLY_BACK;
+        state_ = EXPLORE;
         /*std_srvs::Empty srv;
         if (reset_octomap.call(srv)) {
             ROS_INFO("OctoMap reset successful.");
@@ -202,6 +216,44 @@ void StateMachine::publishPath(const std::list<Eigen::Vector4d>& path) {
     current_goal_ << global_path.points.back().point.x, global_path.points.back().point.y, global_path.points.back().point.z;
 }
 
+void StateMachine::planFarthestPoint() {
+    if (point_cloud_->empty()) {
+        ROS_WARN("No points available in the OctoMap.");
+        return;
+    }
+
+    double max_distance = 0.0;
+    Eigen::Vector3d farthest_point;
+
+    for (const auto& point : point_cloud_->points) {
+        Eigen::Vector3d node_center(point.x, point.y, point.z);
+        double distance = (node_center - current_pose_.translation()).norm();
+
+        if (distance > max_distance) {
+            max_distance = distance;
+            farthest_point = node_center;
+        }
+    }
+
+    if (max_distance > 0.0) {
+        ROS_INFO_NAMED("state_machine", "Farthest point found at (%f, %f, %f).",
+                       farthest_point.x(), farthest_point.y(), farthest_point.z());
+
+        geometry_msgs::Point start_point, goal_point;
+
+        start_point.x = current_pose_.translation().x();
+        start_point.y = current_pose_.translation().y();
+        start_point.z = current_pose_.translation().z();
+        pub_start_points_.publish(start_point);
+
+        goal_point.x = farthest_point.x();
+        goal_point.y = farthest_point.y();
+        goal_point.z = farthest_point.z();
+        pub_goal_points_.publish(goal_point);
+
+        current_goal_ << farthest_point.x(), farthest_point.y(), farthest_point.z();
+    }
+}
 
 int main(int argc, char** argv){
     ros::init(argc, argv, "state_machine");

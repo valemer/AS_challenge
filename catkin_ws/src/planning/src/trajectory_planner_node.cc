@@ -19,6 +19,7 @@ TrajectoryPlanner::TrajectoryPlanner() :
 
     // subscriber
     sub_global_path_ = nh_.subscribe("/global_path", 1, &TrajectoryPlanner::planTrajectory, this);
+    sub_planned_path_ = nh_.subscribe("/planned_path", 1, &TrajectoryPlanner::planTrajectoryInsideCave, this);
     sub_odom_ = nh_.subscribe("/current_state_est", 1, &TrajectoryPlanner::uavOdomCallback, this);
 
 }
@@ -106,6 +107,101 @@ void TrajectoryPlanner::planTrajectory(const fla_msgs::GlobalPath::ConstPtr& glo
             if (acc == 0) {
                 middle.removeConstraint(mav_trajectory_generation::derivative_order::ACCELERATION);
             }
+        } else {
+            /******* Configure end point *******/
+            // set end point constraints to desired position and set all derivatives to zero
+            middle.makeStartOrEnd(pos,
+                               derivative_to_optimize);
+            Eigen::Vector4d vel_vec;
+            vel_vec << 0.0, 0.0, 0.0, 0.0;
+            middle.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
+                              vel_vec);
+            vertices.push_back(middle);
+        }
+    }
+    //
+    // ~~~~ end solution
+    // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+    //                                 end
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    // setimate initial segment times
+    std::vector<double> segment_times;
+    segment_times = estimateSegmentTimes(vertices, max_v_, max_a_);
+
+    // Set up polynomial solver with default params
+    mav_trajectory_generation::NonlinearOptimizationParameters parameters;
+
+    // set up optimization problem
+    const int N = 10;
+    mav_trajectory_generation::PolynomialOptimizationNonLinear<N> opt(dimension, parameters);
+    opt.setupFromVertices(vertices, segment_times, derivative_to_optimize);
+
+    // constrain velocity and acceleration
+    opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::VELOCITY, max_v_);
+    opt.addMaximumMagnitudeConstraint(mav_trajectory_generation::derivative_order::ACCELERATION, max_a_);
+
+    // solve trajectory
+    opt.optimize();
+
+    // get trajectory as polynomial parameters
+    mav_trajectory_generation::Trajectory trajectory;
+    opt.getTrajectory(&trajectory);
+    publishTrajectory(trajectory);
+
+}
+
+void TrajectoryPlanner::planTrajectoryInsideCave(const nav_msgs::Path::ConstPtr& plannedPath) {
+ 
+    // 3 Dimensional trajectory => through carteisan space, no orientation
+    const int dimension = 3;
+
+    // Array for all waypoints and their constrains
+    mav_trajectory_generation::Vertex::Vector vertices;
+
+    // Optimze up to 4th order derivative (SNAP)
+    const int derivative_to_optimize =
+            mav_trajectory_generation::derivative_order::SNAP;
+
+    // we have 2 vertices:
+    // Start = current position
+    // end = desired position and velocity
+    mav_trajectory_generation::Vertex start(dimension), middle(dimension);
+
+
+    /******* Configure start point *******/
+    // set start point constraints to current position and set all derivatives to zero
+    
+    // Eigen::Vector3d start_pos_4d, start_vel_4d;
+    // start_pos_4d << current_pose_.translation(),
+    //     mav_msgs::yawFromQuaternion(
+    //         (Eigen::Quaterniond)current_pose_.rotation());
+    // start_vel_4d << current_velocity_, 0.0;
+    start.makeStartOrEnd(current_pose_.translation(),
+                         derivative_to_optimize);
+
+    // set start point's velocity to be constrained to current velocity
+    start.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
+                        current_velocity_);
+
+    // add waypoint to list
+    vertices.push_back(start);
+
+    /******* Configure trajectory *******/
+    auto points = plannedPath->poses;
+
+    for (size_t i = 0; i < points.size(); ++i) {
+        Eigen::Vector3d pos;
+        // convert orientation data from nav_msgs to orientation
+
+        pos << points[i].pose.position.x, points[i].pose.position.y, points[i].pose.position.z;
+
+        // Check if it's the last element
+        if (i < points.size() - 1) {
+            middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, pos);
+
+            vertices.push_back(middle);
+
         } else {
             /******* Configure end point *******/
             // set end point constraints to desired position and set all derivatives to zero

@@ -1,37 +1,32 @@
 #pragma once
 
+#include <iostream>
 #include <ros/ros.h>
-#include <nav_msgs/Odometry.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <eigen_conversions/eigen_msg.h>
 #include <Eigen/Dense>
+#include <nav_msgs/Odometry.h>
+#include <eigen_conversions/eigen_msg.h>
+#include <geometry_msgs/Point.h>
+#include <sensor_msgs/PointCloud2.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <std_srvs/Empty.h>
-#include "fla_msgs/GlobalPath.h"
 
 enum State {
     TAKE_OFF = 0,
     GO = 1,
-    EXPLORE = 2,
-    FLY_BACK = 3,
-    LAND = 4,
-    STOP = 5
+    PLAN_FARTHEST_POINT = 2,
+    STOP = 3
 };
 
 class StateMachine {
 public:
     StateMachine();
 
-    void uavOdomCallback(const nav_msgs::Odometry::ConstPtr& pose);
+    void uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom);
 
     void octomapCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
 
     void mainLoop(const ros::TimerEvent& t);
-
-    void saveWayBack();
-
-    void publishPath(const std::list<Eigen::Vector4d>& path);
 
     bool closeToGoal();
 
@@ -41,18 +36,13 @@ public:
 
     void planFarthestPoint();
 
-    void loadAndSendPath(const std::string& path);
-
-    void flyBack();
-
-    void land();
+    void loadAndSendPath(std::string path);
 
 private:
-    ros::Publisher pub_global_path_, pub_start_points_, pub_goal_points_;
+    ros::Publisher pub_start_points_, pub_goal_points_;
     ros::Subscriber sub_odom_;
     ros::Subscriber sub_octomap_;
-    ros::ServiceClient reset_octomap;
-
+    ros::ServiceClient client;
 
     ros::Timer timer_;
     double hz_;
@@ -64,13 +54,6 @@ private:
 
     State state_ = TAKE_OFF;
 
-    std::list<Eigen::Vector4d> path_land_;
-    std::list<Eigen::Vector4d> path_back_;
-    Eigen::Vector3d current_goal_;
-    bool paths_sent_ = false;
-
-    // params
-    int time_between_states_s;
-    double min_dis_waypoint_back;
-    double max_dis_close_to_goal;
+    Eigen::Vector3f current_goal_;
+    int paths_sent_ = 0;
 };
