@@ -21,8 +21,8 @@ StateMachine::StateMachine() :
         min_dis_waypoint_back(5.0),
         max_dis_close_to_goal(1.0)
 {
-    // publisher
-    pub_global_path_ = nh_.advertise<fla_msgs::GlobalPath>("/global_path", 0);
+    // Publisher
+    pub_global_path_ = nh_.advertise<fla_msgs::GlobalPath>("/global_path", 1);
     pub_start_points_ = nh_.advertise<geometry_msgs::Point>("/start_points", 1);
     pub_goal_points_ = nh_.advertise<geometry_msgs::Point>("/goal_points", 1);
 
@@ -30,7 +30,7 @@ StateMachine::StateMachine() :
     sub_odom_ = nh_.subscribe("/current_state_est", 1, &StateMachine::uavOdomCallback, this);
     sub_octomap_ = nh_.subscribe("/octomap_point_cloud_centers", 1, &StateMachine::octomapCallback, this);
 
-    // main loop timer
+    // Main loop timer
     timer_ = nh_.createTimer(ros::Rate(hz_), &StateMachine::mainLoop, this);
 
     // Service
@@ -45,12 +45,8 @@ StateMachine::StateMachine() :
 
 // Callback to get current Pose of UAV
 void StateMachine::uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom) {
-
-    // store current position in our planner
+    // Store current position in our planner
     tf::poseMsgToEigen(odom->pose.pose, current_pose_);
-
-    // store current velocity
-    tf::vectorMsgToEigen(odom->twist.twist.linear, current_velocity_);
 }
 
 void StateMachine::octomapCallback(const sensor_msgs::PointCloud2::ConstPtr& msg) {
@@ -99,7 +95,7 @@ void StateMachine::saveWayBack()
 }
 
 bool StateMachine::closeToGoal() {
-  double dist = sqrt(pow(current_pose_.translation()[0] - current_goal_[0], 2)
+    double dist = sqrt(pow(current_pose_.translation()[0] - current_goal_[0], 2)
                      + pow(current_pose_.translation()[1] - current_goal_[1], 2)
                      + pow(current_pose_.translation()[2] - current_goal_[2], 2));
    return dist < max_dis_close_to_goal;
@@ -236,8 +232,8 @@ void StateMachine::planFarthestPoint() {
     }
 
     if (max_distance > 0.0) {
-        ROS_INFO_NAMED("state_machine", "Farthest point found at (%f, %f, %f).",
-                       farthest_point.x(), farthest_point.y(), farthest_point.z());
+        // ROS_INFO_NAMED("state_machine", "Farthest point found at (%f, %f, %f).",
+        //                farthest_point.x(), farthest_point.y(), farthest_point.z());
 
         geometry_msgs::Point start_point, goal_point;
 

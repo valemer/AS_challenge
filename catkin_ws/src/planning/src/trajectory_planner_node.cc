@@ -14,8 +14,8 @@ TrajectoryPlanner::TrajectoryPlanner() :
     nh_.getParam("dynamic_params/max_a", max_a_);
 
     // publisher
-    pub_markers_ = nh_.advertise<visualization_msgs::MarkerArray>("trajectory_markers", 0);
-    pub_trajectory_ = nh_.advertise<mav_planning_msgs::PolynomialTrajectory4D>("trajectory", 0);
+    pub_markers_ = nh_.advertise<visualization_msgs::MarkerArray>("trajectory_markers", 1);
+    pub_trajectory_ = nh_.advertise<mav_planning_msgs::PolynomialTrajectory4D>("trajectory", 1);
 
     // subscriber
     sub_global_path_ = nh_.subscribe("/global_path", 1, &TrajectoryPlanner::planTrajectory, this);
@@ -152,8 +152,9 @@ void TrajectoryPlanner::planTrajectory(const fla_msgs::GlobalPath::ConstPtr& glo
 }
 
 void TrajectoryPlanner::planTrajectoryInsideCave(const nav_msgs::Path::ConstPtr& plannedPath) {
- 
-    // 3 Dimensional trajectory => through carteisan space, no orientation
+
+    ROS_INFO("Planning trajectory inside cave");
+     // 3 Dimensional trajectory => through carteisan space, no orientation
     const int dimension = 3;
 
     // Array for all waypoints and their constrains
@@ -166,17 +167,11 @@ void TrajectoryPlanner::planTrajectoryInsideCave(const nav_msgs::Path::ConstPtr&
     // we have 2 vertices:
     // Start = current position
     // end = desired position and velocity
-    mav_trajectory_generation::Vertex start(dimension), middle(dimension);
+    mav_trajectory_generation::Vertex start(dimension), middle(dimension), end(dimension);
 
 
     /******* Configure start point *******/
     // set start point constraints to current position and set all derivatives to zero
-    
-    // Eigen::Vector3d start_pos_4d, start_vel_4d;
-    // start_pos_4d << current_pose_.translation(),
-    //     mav_msgs::yawFromQuaternion(
-    //         (Eigen::Quaterniond)current_pose_.rotation());
-    // start_vel_4d << current_velocity_, 0.0;
     start.makeStartOrEnd(current_pose_.translation(),
                          derivative_to_optimize);
 
@@ -187,38 +182,44 @@ void TrajectoryPlanner::planTrajectoryInsideCave(const nav_msgs::Path::ConstPtr&
     // add waypoint to list
     vertices.push_back(start);
 
-    /******* Configure trajectory *******/
+    /******* Configure middle points *******/
+    Eigen::Vector3d middle_position;
+
     auto points = plannedPath->poses;
 
-    for (size_t i = 0; i < points.size(); ++i) {
-        Eigen::Vector3d pos;
-        // convert orientation data from nav_msgs to orientation
+    for (size_t i = 0; i < points.size() - 1; ++i) {
+        // Extract position
+        middle_position << points[i].pose.position.x,
+                        points[i].pose.position.y,
+                        points[i].pose.position.z;
 
-        pos << points[i].pose.position.x, points[i].pose.position.y, points[i].pose.position.z;
+        // Add constraint
+        middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, middle_position);
 
-        // Check if it's the last element
-        if (i < points.size() - 1) {
-            middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, pos);
-
-            vertices.push_back(middle);
-
-        } else {
-            /******* Configure end point *******/
-            // set end point constraints to desired position and set all derivatives to zero
-            middle.makeStartOrEnd(pos,
-                               derivative_to_optimize);
-            Eigen::Vector4d vel_vec;
-            vel_vec << 0.0, 0.0, 0.0, 0.0;
-            middle.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
-                              vel_vec);
-            vertices.push_back(middle);
-        }
+        // Append
+        vertices.push_back(middle);
+        
+        // Clear constraints
+        middle.removeConstraint(mav_trajectory_generation::derivative_order::POSITION);
+        middle.removeConstraint(mav_trajectory_generation::derivative_order::VELOCITY);
+        middle.removeConstraint(mav_trajectory_generation::derivative_order::ACCELERATION);
     }
-    //
-    // ~~~~ end solution
-    // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-    //                                 end
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    ROS_INFO("Vertices size: %lu", vertices.size());
+
+    /******* Configure end point *******/
+    // set end point constraints to desired position and set all derivatives to zero
+    end.makeStartOrEnd(Eigen::Vector3d(points.back().pose.position.x,
+                                        points.back().pose.position.y,
+                                        points.back().pose.position.z),
+                       derivative_to_optimize);
+
+    // set start point's velocity to be constrained to current velocity
+    end.addConstraint(mav_trajectory_generation::derivative_order::VELOCITY,
+                      Eigen::Vector3d::Zero());
+
+    // add waypoint to list
+    vertices.push_back(end);
 
     // setimate initial segment times
     std::vector<double> segment_times;
@@ -238,6 +239,8 @@ void TrajectoryPlanner::planTrajectoryInsideCave(const nav_msgs::Path::ConstPtr&
 
     // solve trajectory
     opt.optimize();
+
+    ROS_INFO("Optimization done");
 
     // get trajectory as polynomial parameters
     mav_trajectory_generation::Trajectory trajectory;

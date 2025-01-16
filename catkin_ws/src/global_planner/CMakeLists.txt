@@ -1,58 +1,27 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(planning)
+project(global_planner)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
-# set(CMAKE_MACOSX_RPATH 0)
-# add_definitions(-std=c++11)
+set(CMAKE_CXX_FLAGS "-std=c++14 ${CMAKE_CXX_FLAGS} -O3 -Wall")
 
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  eigen_catkin
-  catkin_simple
-  mav_msgs
-  mav_planning_msgs
-  mav_trajectory_generation
-  mav_trajectory_generation_ros
-  mav_visualization
-  roslib
-  yaml_cpp_catkin
-  fla_msgs
+  roscpp
+  rospy
+  std_msgs
+  octomap_ros
+  eigen_conversions
 )
-
-find_package( PCL 1.7 REQUIRED )
-# [C/C++]>[General]>[Additional Include Directories]
-include_directories( ${PCL_INCLUDE_DIRS} )
-
-# [C/C++]>[Preprocessor]>[Preprocessor Definitions]
-add_definitions( ${PCL_DEFINITIONS} )
-# [Linker]>[General]>[Additional Library Directories]
-link_directories( ${PCL_LIBRARY_DIRS} )
-
-catkin_simple(ALL_DEPS_REQUIRED)
-
-cs_add_executable(state_machine
-        src/state_machine.cpp
-)
-
-cs_add_executable(trajectory_planner
-        src/trajectory_planner_node.cc
-        )
-
-cs_install()
-cs_export()
-
-# [Linker]>[Input]>[Additional Dependencies]
-target_link_libraries( state_machine ${PCL_LIBRARIES} )
-
+find_package(OpenCV REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(PCL 1.7 REQUIRED)
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
-
+# find_package(Eigen3)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -107,7 +76,7 @@ target_link_libraries( state_machine ${PCL_LIBRARIES} )
 ## Generate added messages and services with any dependencies listed here
 # generate_messages(
 #   DEPENDENCIES
-#   mav_msgs#   mav_planning_msgs
+#   std_msgs
 # )
 
 ################################################
@@ -140,31 +109,34 @@ target_link_libraries( state_machine ${PCL_LIBRARIES} )
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES basic_waypoint_pkg
-#  CATKIN_DEPENDS eigen_catkin mav_msgs mav_planning_msgs mav_trajectory_generation mav_trajectory_generation_ros mav_visualization roslib
-#  DEPENDS system_lib
+  INCLUDE_DIRS include
+  LIBRARIES global_planner
+  CATKIN_DEPENDS roscpp rospy std_msgs
+  #DEPENDS system_lib
 )
 
 ###########
 ## Build ##
 ###########
 
+
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include
   ${catkin_INCLUDE_DIRS}
+  ${Eigen3_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
-)
 
-# link_directories(${PCL_LIBRARY_DIRS})
-# add_definitions(${PCL_DEFINITIONS})
+)
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/basic_waypoint_pkg.cpp
+#   src/${PROJECT_NAME}/global_planner.cpp
 # )
+add_library(${PROJECT_NAME} src/globalPlannerLib.cpp
+                            include/${PROJECT_NAME}/PRMKDTree.cpp)
+
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -174,7 +146,12 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/basic_waypoint_pkg_node.cpp)
+# add_executable(${PROJECT_NAME}_node src/global_planner_node.cpp)
+# add_executable(test_kdtree src/test/test_kdtree.cpp)
+# add_executable(test_prm_kdtree src/test/test_prm_kdtree.cpp)
+# add_executable(test_blob_detection src/test/test_blob_detection.cpp)
+add_executable(rrt_star_interactive_node src/rrt_star_interactive_node.cpp)
+
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -185,11 +162,18 @@ include_directories(
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(test_rrt rrtOctomap)
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${OpenCV_LIBS})
+# target_link_libraries(test_kdtree ${catkin_LIBRARIES})
+# target_link_libraries(test_prm_kdtree ${catkin_LIBRARIES} ${PROJECT_NAME} ${OpenCV_LIBS})
+# target_link_libraries(test_blob_detection ${catkin_LIBRARIES})
+target_link_libraries(rrt_star_interactive_node ${catkin_LIBRARIES})
+
 
 #############
 ## Install ##
@@ -213,18 +197,20 @@ include_directories(
 
 ## Mark libraries for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_libraries.html
-# install(TARGETS ${PROJECT_NAME}
-#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
-# )
+install(TARGETS ${PROJECT_NAME}
+ ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+ LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+ RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+)
 
 ## Mark cpp header files for installation
-# install(DIRECTORY include/${PROJECT_NAME}/
-#   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#   FILES_MATCHING PATTERN "*.h"
-#   PATTERN ".svn" EXCLUDE
-# )
+install(DIRECTORY include/${PROJECT_NAME}/
+   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+   # FILES_MATCHING PATTERN "*.h"
+   # PATTERN ".svn" EXCLUDE
+)
+
+
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
 # install(FILES
@@ -233,18 +219,12 @@ include_directories(
 #   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 # )
 
-# Install Python scripts
-catkin_install_python(PROGRAMS
-        scripts/manual_control.py
-        DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
 #############
 ## Testing ##
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_basic_waypoint_pkg.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_global_planner.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

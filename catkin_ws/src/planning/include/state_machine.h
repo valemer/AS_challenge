@@ -23,7 +23,7 @@ class StateMachine {
 public:
     StateMachine();
 
-    void uavOdomCallback(const nav_msgs::Odometry::ConstPtr& pose);
+    void uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom);
 
     void octomapCallback(const sensor_msgs::PointCloud2::ConstPtr& msg);
 
@@ -52,7 +52,6 @@ private:
     ros::Subscriber sub_odom_;
     ros::Subscriber sub_octomap_;
     ros::ServiceClient reset_octomap;
-
 
     ros::Timer timer_;
     double hz_;

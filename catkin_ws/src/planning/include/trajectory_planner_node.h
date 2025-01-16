@@ -10,6 +10,10 @@
 #include <mav_trajectory_generation/polynomial_optimization_nonlinear.h>
 #include <mav_trajectory_generation_ros/ros_visualization.h>
 #include <mav_trajectory_generation_ros/ros_conversions.h>
+#include <visualization_msgs/MarkerArray.h>
+#include <mav_planning_msgs/PolynomialTrajectory4D.h>
+#include <mav_msgs/conversions.h>
+#include <mav_msgs/eigen_mav_msgs.h>
 
 class TrajectoryPlanner {
 public:
@@ -19,7 +23,7 @@ public:
 
     void setMaxSpeed(double max_v);
 
-    void planTrajectory(const fla_msgs::GlobalPath::ConstPtr& globalPath);
+    void planTrajectory(const nav_msgs::Path::ConstPtr& globalPath);
 
     void planTrajectoryInsideCave(const nav_msgs::Path::ConstPtr& plannedPath);
 
@@ -39,7 +43,6 @@ private:
 
     double max_v_; // m/s
     double max_a_; // m/s^2
-    double max_ang_v_;
-    double max_ang_a_;
-
+    double max_ang_v_; // rad/s
+    double max_ang_a_; // rad/s^2
 };
