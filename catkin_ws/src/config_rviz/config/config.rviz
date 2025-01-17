@@ -49,7 +49,7 @@ Visualization Manager:
         Z: 0
       Plane: XY
       Plane Cell Count: 10
-      Reference Frame: <Fixed Frame>
+      Reference Frame: world
       Value: true
     - Class: rviz/Image
       Enabled: true
@@ -192,7 +192,7 @@ Visualization Manager:
       Marker Topic: /lantern_detection_marker_array
       Name: MarkerArray
       Namespaces:
-        {}
+        yellow_points: true
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -205,6 +205,14 @@ Visualization Manager:
       Radius: 0.20000000298023224
       Topic: /lantern_detection_world_coordinates
       Unreliable: false
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /path_marker_array
+      Name: MarkerArray
+      Namespaces:
+        path: true
+      Queue Size: 100
       Value: true
   Enabled: true
   Global Options:
@@ -234,7 +242,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 22.202604293823242
+      Distance: 24.805849075317383
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -250,9 +258,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.530397891998291
+      Pitch: -0.029602307826280594
       Target Frame: body
-      Yaw: 0.3322139084339142
+      Yaw: 5.820382118225098
     Saved: ~
 Window Geometry:
   Displays:
@@ -273,4 +281,4 @@ Window Geometry:
     collapsed: true
   Width: 1200
   X: 72
-  Y: 27
+  Y: 0

@@ -34,12 +34,15 @@ public:
 
     void loadAndSendPath(const std::string& path);
 
+    void explore();
+
     void flyBack();
 
     void land();
 
 private:
     ros::Publisher pub_global_path_;
+    ros::Publisher pub_controll_planner;
     ros::Subscriber sub_odom_;
     ros::ServiceClient reset_octomap;
 
