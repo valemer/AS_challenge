@@ -7,7 +7,8 @@ StateMachine::StateMachine() :
         point_cloud_(new pcl::PointCloud<pcl::PointXYZ>()),
         time_between_states_s(2),
         min_dis_waypoint_back(5.0),
-        max_dis_close_to_goal(1.0)
+        max_dis_close_to_goal(1.0),
+        detected_lantern_count_(0) // Initialize the lantern count
 {
     // Publisher
     pub_global_path_ = nh_.advertise<fla_msgs::GlobalPath>("/global_path", 1);
@@ -18,6 +19,7 @@ StateMachine::StateMachine() :
     // subscriber
     sub_odom_ = nh_.subscribe("/current_state_est", 1, &StateMachine::uavOdomCallback, this);
     sub_octomap_ = nh_.subscribe("/octomap_point_cloud_centers", 1, &StateMachine::octomapCallback, this);
+    sub_all_lanterns_ = nh_.subscribe("/all_detected_lantern_locations", 1, &StateMachine::lanternCallback, this); // New subscriber for lantern locations
 
     // Main loop timer
     timer_ = nh_.createTimer(ros::Rate(hz_), &StateMachine::mainLoop, this);
@@ -43,6 +45,13 @@ void StateMachine::octomapCallback(const sensor_msgs::PointCloud2::ConstPtr& msg
     ROS_INFO("Received OctoMap PointCloud2 with %lu points.", point_cloud_->points.size());
 }
 
+// Callback to track detected lanterns
+void StateMachine::lanternCallback(const geometry_msgs::PoseArray::ConstPtr& msg) {
+    detected_lantern_count_ = msg->poses.size(); // Get the number of detected lanterns
+    ROS_INFO("Detected lanterns: %d", detected_lantern_count_);
+
+}
+
 void StateMachine::mainLoop(const ros::TimerEvent& t) {
   switch(state_)
   {
@@ -56,15 +65,17 @@ void StateMachine::mainLoop(const ros::TimerEvent& t) {
       // TODO
       planFarthestPoint();
       break;
-  case FLY_BACK:
-      flyBack();
-      break;
-  case LAND:
-      land();
-      break;
-  case STOP:
-      break;
-  }
+  case FLY_BACK:  // New state for flying back
+            flyBack();
+            break;
+    }
+
+    // Trigger FLY_BACK state when 4 or more lanterns are detected
+    if (detected_lantern_count_ >= 4 && state_ != FLY_BACK) {
+        state_ = FLY_BACK;
+        ROS_INFO("Triggering FLY_BACK state: 4 or more lanterns detected.");
+    }
+
 }
 
 void StateMachine::saveWayBack()
@@ -166,6 +177,7 @@ void StateMachine::loadAndSendPath(const std::string& path) {
 }
 
 void StateMachine::flyBack() {
+    ROS_INFO("Flying back to the starting point...");
     if (!paths_sent_) {
         publishPath(path_back_);
     } else if (closeToGoal()) {
