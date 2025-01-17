@@ -1,14 +1,24 @@
 #pragma once
 
 #include <ros/ros.h>
+#include <thread>
+
+#include <mav_msgs/common.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <visualization_msgs/MarkerArray.h>
 #include <eigen_conversions/eigen_msg.h>
 #include <Eigen/Dense>
+#include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <std_srvs/Empty.h>
+
 #include "fla_msgs/GlobalPath.h"
+#include "yaml-cpp/yaml.h"
+#include "ros/package.h"
+#include "std_srvs/Empty.h"
+#include "geometry_msgs/Point.h"
 
 enum State {
     TAKE_OFF = 0,
@@ -48,7 +58,7 @@ public:
     void land();
 
 private:
-    ros::Publisher pub_global_path_, pub_start_points_, pub_goal_points_;
+    ros::Publisher pub_global_path_, pub_start_points_, pub_goal_points_, pub_markers_;
     ros::Subscriber sub_odom_;
     ros::Subscriber sub_octomap_;
     ros::ServiceClient reset_octomap;

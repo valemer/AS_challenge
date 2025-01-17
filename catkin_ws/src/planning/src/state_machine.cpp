@@ -1,17 +1,5 @@
 #include "state_machine.h"
 
-#include <thread>
-#include <mav_msgs/common.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <pcl_conversions/pcl_conversions.h>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-
-#include "yaml-cpp/yaml.h"
-#include "ros/package.h"
-#include "std_srvs/Empty.h"
-#include "geometry_msgs/Point.h"
-
 StateMachine::StateMachine() :
         hz_(10.0),
         current_velocity_(Eigen::Vector3d::Zero()),
@@ -25,6 +13,7 @@ StateMachine::StateMachine() :
     pub_global_path_ = nh_.advertise<fla_msgs::GlobalPath>("/global_path", 1);
     pub_start_points_ = nh_.advertise<geometry_msgs::Point>("/start_points", 1);
     pub_goal_points_ = nh_.advertise<geometry_msgs::Point>("/goal_points", 1);
+    pub_markers_ = nh_.advertise<visualization_msgs::MarkerArray>("/farthest_depth", 1);
 
     // subscriber
     sub_odom_ = nh_.subscribe("/current_state_est", 1, &StateMachine::uavOdomCallback, this);
@@ -221,13 +210,17 @@ void StateMachine::planFarthestPoint() {
     double max_distance = 0.0;
     Eigen::Vector3d farthest_point;
 
+    // TODO: Limit the number of points to be checked to only the ones that are in front of the UAV
     for (const auto& point : point_cloud_->points) {
         Eigen::Vector3d node_center(point.x, point.y, point.z);
-        double distance = (node_center - current_pose_.translation()).norm();
+        // only process points in front of the UAV (in front of x axis)
+        if (node_center.x() < current_pose_.translation().x()) {
+            double distance = (node_center - current_pose_.translation()).norm();
 
-        if (distance > max_distance) {
-            max_distance = distance;
-            farthest_point = node_center;
+            if (distance > max_distance) {
+                max_distance = distance;
+                farthest_point = node_center;
+            }
         }
     }
 
@@ -249,6 +242,26 @@ void StateMachine::planFarthestPoint() {
 
         current_goal_ << farthest_point.x(), farthest_point.y(), farthest_point.z();
     }
+
+    // publish the current goal as visaualization marker
+    visualization_msgs::MarkerArray marker_array;
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "world";
+    marker.type = visualization_msgs::Marker::SPHERE;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.pose.position.x = farthest_point.x();
+    marker.pose.position.y = farthest_point.y();
+    marker.pose.position.z = farthest_point.z();
+    marker.scale.x = 1.0; // Big green ball
+    marker.scale.y = 1.0;
+    marker.scale.z = 1.0;
+    marker.color.r = 0.0;
+    marker.color.g = 1.0;
+    marker.color.b = 0.0;
+    marker.color.a = 1.0;
+    marker_array.markers.push_back(marker);
+
+    pub_markers_.publish(marker_array);
 }
 
 int main(int argc, char** argv){
