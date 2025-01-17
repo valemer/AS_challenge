@@ -14,11 +14,13 @@ class CaveExplorerNode:
     def __init__(self):
         rospy.init_node('cave_explorer', anonymous=True)
 
-        # Parameters
-        self.max_radius = 20.0
-        self.sampling_angle_deg = 10  # Sampling resolution in degrees
-        self.max_sampling_angle_deg = 50  # Maximum cone angle in degrees
-        self.max_planning_distance = 55.0  # Maximum distance for planning
+        # Load parameters from the parameter server
+        self.max_radius = rospy.get_param("~max_radius", 20.0)
+        self.min_radius = rospy.get_param("~min_radius", 3.0)
+        self.sampling_angle_deg = rospy.get_param("~sampling_angle_deg", 10)
+        self.max_sampling_angle_deg = rospy.get_param("~max_sampling_angle_deg", 50)
+        self.max_planning_distance = rospy.get_param("~max_planning_distance", 55.0)
+
         self.current_position = None  # Position is None until updated
         self.current_velocity = np.array([0.0, 0.0, 0.0])
         self.current_orientation = np.eye(3)
@@ -27,7 +29,7 @@ class CaveExplorerNode:
         self.marker_id = 0  # Unique ID for each marker
         self.totsal_distance = 0.0  # Total planned distance
         self.best_point = None  # Best point reached
-        self.running = True
+        self.running = False
 
         # Subscribers
         rospy.Subscriber("current_state_est", Odometry, self.odom_callback)
@@ -255,9 +257,8 @@ class CaveExplorerNode:
                 # Evaluate sampled points and find the best one
                 best_value = -float('inf')
                 for sampled_point, max_radius in sampled_points:
-                    if max_radius < 3.0:
+                    if max_radius < self.min_radius:
                         continue
-                    print(max_radius)
                     distance_to_goal = np.linalg.norm(sampled_point - goal_point)
                     distance_from_start = np.linalg.norm(sampled_point - start_position)
                     value = distance_from_start - 10 * distance_to_goal + 20 * max_radius

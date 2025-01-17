@@ -2,6 +2,7 @@ state_machine:
   time_between_states_s: 2
   min_dis_waypoint_back: 5.0
   max_dis_close_to_goal: 1.0
+  max_speed_in_cave: 5.0
 
 takeoff:
   - [ -38.06, 10.0, 17.5, 3.2, -1.0, -1.0 ]

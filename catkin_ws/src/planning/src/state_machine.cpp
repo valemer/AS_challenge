@@ -9,6 +9,7 @@
 #include "std_srvs/Empty.h"
 
 #include <geometry_msgs/PoseArray.h> // For lantern locations
+#include <std_msgs/Float32.h>
 
 StateMachine::StateMachine() :
         hz_(10.0),
@@ -17,9 +18,11 @@ StateMachine::StateMachine() :
         time_between_states_s(2),
         min_dis_waypoint_back(5.0),
         max_dis_close_to_goal(1.0),
+        max_speed_in_cave_(5.0),
         detected_lantern_count_(0) // Initialize the lantern count
 {
     // publisher
+    pub_max_v_ = nh_.advertise<std_msgs::Float32>("/max_speed", 1);
     pub_global_path_ = nh_.advertise<fla_msgs::GlobalPath>("/global_path", 0);
     pub_controll_planner = nh_.advertise<std_msgs::Bool>("/control_planner", 0);
 
@@ -38,6 +41,7 @@ StateMachine::StateMachine() :
     nh_.getParam("state_machine/time_between_states_s", time_between_states_s);
     nh_.getParam("state_machine/min_dis_waypoint_back", min_dis_waypoint_back);
     nh_.getParam("state_machine/max_dis_close_to_goal", max_dis_close_to_goal);
+    nh_.getParam("state_machine/max_speed_in_cave", max_speed_in_cave_);
 }
 
 // Callback to get current Pose of UAV
@@ -54,7 +58,6 @@ void StateMachine::uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom) {
 void StateMachine::lanternCallback(const geometry_msgs::PoseArray::ConstPtr& msg) {
     detected_lantern_count_ = msg->poses.size(); // Get the number of detected lanterns
     ROS_INFO("Detected lanterns: %d", detected_lantern_count_);
-
 }
 
 
@@ -139,6 +142,9 @@ void StateMachine::flyToCave() {
     } else if (closeToGoal()) {
         paths_sent_ = false;
         state_ = EXPLORE;
+        std_msgs::Float32 msg;
+        msg.data = max_speed_in_cave_;
+        pub_max_v_.publish(msg);
         std_srvs::Empty srv;
         if (reset_octomap.call(srv)) {
             ROS_INFO("OctoMap reset successful.");

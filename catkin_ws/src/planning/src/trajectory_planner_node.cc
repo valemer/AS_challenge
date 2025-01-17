@@ -18,6 +18,7 @@ TrajectoryPlanner::TrajectoryPlanner() :
     pub_trajectory_ = nh_.advertise<mav_planning_msgs::PolynomialTrajectory4D>("trajectory", 0);
 
     // subscriber
+    sub_max_speed_ = nh_.subscribe("/max_speed", 1, &TrajectoryPlanner::setMaxSpeed, this);
     sub_global_path_ = nh_.subscribe("/global_path", 1, &TrajectoryPlanner::planTrajectory, this);
     sub_odom_ = nh_.subscribe("/current_state_est", 1, &TrajectoryPlanner::uavOdomCallback, this);
 
@@ -34,8 +35,9 @@ void TrajectoryPlanner::uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom
 }
 
 // Method to set maximum speed.
-void TrajectoryPlanner::setMaxSpeed(const double max_v) {
-    max_v_ = max_v;
+void TrajectoryPlanner::setMaxSpeed(const std_msgs::Float32::ConstPtr& msg) {
+    max_v_ = msg->data;
+    ROS_INFO("Updated max speed to: %f", max_v_);
 }
 
 // Plans a trajectory from the current position to the a goal position and velocity

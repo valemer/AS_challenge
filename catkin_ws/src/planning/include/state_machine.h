@@ -44,6 +44,7 @@ public:
 private:
     // ROS Handles
     ros::NodeHandle nh_;
+    ros::Publisher pub_max_v_;
     ros::Publisher pub_global_path_;
     ros::Publisher pub_controll_planner;
     ros::Subscriber sub_odom_;
@@ -72,5 +73,6 @@ private:
     int time_between_states_s;
     double min_dis_waypoint_back;
     double max_dis_close_to_goal;
+    float max_speed_in_cave_;
 };
 

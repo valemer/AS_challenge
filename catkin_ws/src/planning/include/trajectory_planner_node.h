@@ -9,6 +9,7 @@
 #include <mav_trajectory_generation/polynomial_optimization_nonlinear.h>
 #include <mav_trajectory_generation_ros/ros_visualization.h>
 #include <mav_trajectory_generation_ros/ros_conversions.h>
+#include <std_msgs/Float32.h>
 
 class TrajectoryPlanner {
 public:
@@ -16,7 +17,7 @@ public:
 
     void uavOdomCallback(const nav_msgs::Odometry::ConstPtr& pose);
 
-    void setMaxSpeed(double max_v);
+    void setMaxSpeed(const std_msgs::Float32::ConstPtr& max_v);
 
     void planTrajectory(const fla_msgs::GlobalPath::ConstPtr& globalPath);
 
@@ -25,6 +26,7 @@ public:
 private:
     ros::Publisher pub_markers_;
     ros::Publisher pub_trajectory_;
+    ros::Subscriber sub_max_speed_;
     ros::Subscriber sub_global_path_;
     ros::Subscriber sub_odom_;
 
