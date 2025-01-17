@@ -27,7 +27,6 @@ double LanternDetectionNode::distance(const geometry_msgs::Point& a, const geome
 }
 
 void LanternDetectionNode::updateTrackedObjects(const geometry_msgs::Point& detected_point) {
-    
     // Handle the first detection separately
     if (!first_lantern_detected_) {
         first_lantern_detected_ = true;  // Mark the first lantern as processed
@@ -51,6 +50,15 @@ void LanternDetectionNode::updateTrackedObjects(const geometry_msgs::Point& dete
                      i, all_detected_lanterns_[i].x, all_detected_lanterns_[i].y, all_detected_lanterns_[i].z);
         }
         return;
+    }
+
+    // Check if the new detected point is at least 40 units away from all previously detected lanterns
+    for (const auto& point : all_detected_lanterns_) {
+        if (distance(point, detected_point) < 40.0) {
+            //ROS_WARN("Rejected detected point at x = %.2f, y = %.2f, z = %.2f. Too close to a previously detected lantern.",
+                    // detected_point.x, detected_point.y, detected_point.z);
+            return; // Ignore this detection
+        }
     }
 
     // Handle other detections normally
@@ -178,7 +186,7 @@ void LanternDetectionNode::callback(const sensor_msgs::ImageConstPtr& image_msg,
     }
 
     //ROS_INFO("Largest contour: %f", max_area);
-    
+
 
 
     if (max_area < min_yellow_points_)
