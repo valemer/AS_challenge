@@ -2,6 +2,7 @@
 
 #include <thread>
 #include <mav_msgs/common.h>
+#include <std_msgs/Bool.h>
 
 #include "yaml-cpp/yaml.h"
 #include "ros/package.h"
@@ -20,6 +21,7 @@ StateMachine::StateMachine() :
 {
     // publisher
     pub_global_path_ = nh_.advertise<fla_msgs::GlobalPath>("/global_path", 0);
+    pub_controll_planner = nh_.advertise<std_msgs::Bool>("/control_planner", 0);
 
     // subscriber
     sub_odom_ = nh_.subscribe("/current_state_est", 1, &StateMachine::uavOdomCallback, this);
@@ -67,7 +69,7 @@ void StateMachine::mainLoop(const ros::TimerEvent& t) {
       flyToCave();
       break;
   case EXPLORE:
-      // TODO
+      explore();
       saveWayBack();
       break;
   case FLY_BACK:  // New state for flying back
@@ -136,13 +138,14 @@ void StateMachine::flyToCave() {
         paths_sent_ = true;
     } else if (closeToGoal()) {
         paths_sent_ = false;
-        state_ = FLY_BACK;
-        /*std_srvs::Empty srv;
+        state_ = EXPLORE;
+        std_srvs::Empty srv;
         if (reset_octomap.call(srv)) {
             ROS_INFO("OctoMap reset successful.");
         } else {
             ROS_ERROR("Failed to reset OctoMap.");
-        }*/
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(time_between_states_s));
     }
 }
 
@@ -179,6 +182,21 @@ void StateMachine::loadAndSendPath(const std::string& path) {
     pub_global_path_.publish(global_path);
 
     current_goal_ << global_point.point.x, global_point.point.y, global_point.point.z;
+}
+
+void StateMachine::explore() {
+    if (!paths_sent_) {
+        std_msgs::Bool msg;
+        msg.data = true;
+        pub_controll_planner.publish(msg);
+        paths_sent_ = true;
+    } else if (false) {
+        std_msgs::Bool msg;
+        msg.data = false;
+        pub_controll_planner.publish(msg);
+        paths_sent_ = false;
+        state_ = FLY_BACK;
+    }
 }
 
 void StateMachine::flyBack() {

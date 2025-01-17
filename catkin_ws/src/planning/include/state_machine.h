@@ -31,6 +31,7 @@ public:
     // Core State Machine Functions
     void takeOff();
     void flyToCave();
+    void explore();
     void flyBack();
     void land();
 
@@ -44,6 +45,7 @@ private:
     // ROS Handles
     ros::NodeHandle nh_;
     ros::Publisher pub_global_path_;
+    ros::Publisher pub_controll_planner;
     ros::Subscriber sub_odom_;
     ros::Subscriber sub_all_lanterns_; // Subscriber for lantern locations
     ros::ServiceClient reset_octomap;

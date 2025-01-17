@@ -215,6 +215,7 @@ include_directories(
 # Install Python scripts
 catkin_install_python(PROGRAMS
         scripts/manual_control.py
+        scripts/cave_explorer_node.py
         DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
