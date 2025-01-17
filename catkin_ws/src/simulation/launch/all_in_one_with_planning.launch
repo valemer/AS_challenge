@@ -1,0 +1,10 @@
+<launch>
+    <!-- Start Simulation -->
+    <include file="$(find simulation)/launch/simulation.launch" />
+
+    <!-- Start Planning -->
+    <include file="$(find planning)/launch/planning.launch" />
+
+    <!-- Start RVIZ -->
+    <include file="$(find config_rviz)/launch/rviz.launch" />
+</launch>

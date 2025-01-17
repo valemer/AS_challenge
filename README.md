@@ -31,6 +31,20 @@ roslaunch config_rviz rviz.launch
 ```
 cd catkin_ws
 . devel/setup.bash
-rosrun basic_waypoint_pkg manual_control.py
+rosrun planning manual_control.py
+```
+
+## Launch Files
+
+### all_in_one_with_planning.launch
+starts the simulation, planning, and RVIZ 
+```
+roslaunch simulation all_in_one_with_planning.launch
+```
+
+### all_in_one_with_manual_control.launch
+starts the simulation, RVIZ, and manual control.
+```
+roslaunch simulation all_in_one_with_manual_control.launch
 ```
 
