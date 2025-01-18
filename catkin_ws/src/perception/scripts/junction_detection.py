@@ -44,7 +44,7 @@ def occupancy_grid_callback(msg):
     junction_map = filter_junctions_in_square(junction_map, width, height, 25)
 
     # Publish junctions as PointStamped messages
-    publish_junctions(junction_map, resolution, origin, current_uav_height)
+    publish_junctions(junction_map, resolution, origin, current_uav_height, width)
 
     # Visualize the results
     visualize_junctions(grid_map, junction_map, skeleton, width, height, 25)
@@ -125,7 +125,7 @@ def cluster_junctions(points, distances, min_distance):
         clustered_points.append(cluster_center)
     return np.array(clustered_points)
 
-def publish_junctions(junction_map, resolution, origin, height):
+def publish_junctions(junction_map, resolution, origin, height, width):
     """
     Publish detected junctions as PointStamped messages for RViz.
 
@@ -134,6 +134,7 @@ def publish_junctions(junction_map, resolution, origin, height):
         resolution: Resolution of the grid map (meters per cell).
         origin: Origin of the map in the world frame (geometry_msgs/Pose).
         height: Current height of the UAV (z-coordinate).
+        width: Width of the grid map.
     """
     junction_pub = rospy.Publisher("/junction_points", PointStamped, queue_size=10)
     junction_points = np.argwhere(junction_map > 0)
@@ -142,9 +143,15 @@ def publish_junctions(junction_map, resolution, origin, height):
         point = PointStamped()
         point.header.frame_id = "world"
         point.header.stamp = rospy.Time.now()
-        point.point.x = origin.position.x + (x_index * resolution)
-        point.point.y = origin.position.y + (y_index * resolution)
+
+        # Correct for the flipping of the grid
+        x_world = origin.position.x + ((width - 1 - x_index) * resolution)
+        y_world = origin.position.y + (y_index * resolution)
+
+        point.point.x = x_world
+        point.point.y = y_world
         point.point.z = height  # Use current UAV height for the z-coordinate
+
         junction_pub.publish(point)
 
 def visualize_junctions(grid_map, junction_map, skeleton, width, height, square_size):
