@@ -44,11 +44,14 @@ def occupancy_grid_callback(msg):
     # Filter junctions outside the inner 25x25 square
     junction_orientations = filter_oriented_junctions_in_square(junction_orientations, width, height, 25)
 
+    # Filter junctions with less than three outgoings
+    filtered_junction_orientations = [entry for entry in junction_orientations if len(entry[1]) >= 3]
+
     # Publish junction arrows as RViz markers
-    publish_junction_arrows(junction_orientations, resolution, origin, current_uav_height, width)
+    publish_junction_arrows(filtered_junction_orientations, resolution, origin, current_uav_height, width)
 
     # Visualize the results
-    visualize_junctions(grid_map, junction_orientations, skeleton, width, height, 25)
+    visualize_junctions(grid_map, filtered_junction_orientations, skeleton, width, height, 25)
 
 
 def mean_of_angles(radians):
