@@ -16,6 +16,7 @@ class JunctionDetectionNode:
         self.current_uav_height = 0.0
         self.detected_junctions = []
         self.min_dis_new_junction = 30.0
+        self.min_detections_in_area = 10
 
         # Subscribers
         rospy.Subscriber("/current_state_est", Odometry, self.uav_odom_callback)
@@ -154,44 +155,45 @@ class JunctionDetectionNode:
     def publish_junction_arrows(self):
         marker_id = 0
         for junction in self.detected_junctions:
-            x_world, y_world, z_world = junction['position']
-            for angle in junction['orientations']:
-                dx = 5.0 * math.cos(angle)
-                dy = 5.0 * math.sin(angle)
+            if junction['counter'] > self.min_detections_in_area:
+                x_world, y_world, z_world = junction['position']
+                for angle in junction['orientations']:
+                    dx = 5.0 * math.cos(angle)
+                    dy = 5.0 * math.sin(angle)
 
-                marker = Marker()
-                marker.header.frame_id = "world"
-                marker.header.stamp = rospy.Time.now()
-                marker.ns = "junction_arrows"
-                marker.id = marker_id
-                marker.type = Marker.ARROW
-                marker.action = Marker.ADD
+                    marker = Marker()
+                    marker.header.frame_id = "world"
+                    marker.header.stamp = rospy.Time.now()
+                    marker.ns = "junction_arrows"
+                    marker.id = marker_id
+                    marker.type = Marker.ARROW
+                    marker.action = Marker.ADD
 
-                start_point = PointStamped().point
-                start_point.x = x_world
-                start_point.y = y_world
-                start_point.z = z_world
+                    start_point = PointStamped().point
+                    start_point.x = x_world
+                    start_point.y = y_world
+                    start_point.z = z_world
 
-                end_point = PointStamped().point
-                end_point.x = x_world + dx
-                end_point.y = y_world + dy
-                end_point.z = z_world
+                    end_point = PointStamped().point
+                    end_point.x = x_world + dx
+                    end_point.y = y_world + dy
+                    end_point.z = z_world
 
-                marker.points = [start_point, end_point]
-                marker.scale.x = 0.1
-                marker.scale.y = 0.2
-                marker.scale.z = 0.2
-                marker.color.r = 1.0
-                marker.color.g = 0.0
-                marker.color.b = 0.0
-                marker.color.a = 1.0
+                    marker.points = [start_point, end_point]
+                    marker.scale.x = 0.1
+                    marker.scale.y = 0.2
+                    marker.scale.z = 0.2
+                    marker.color.r = 1.0
+                    marker.color.g = 0.0
+                    marker.color.b = 0.0
+                    marker.color.a = 1.0
 
-                self.marker_pub.publish(marker)
-                marker_id += 1
+                    self.marker_pub.publish(marker)
+                    marker_id += 1
 
     def publish_final_junctions(self):
         for junction in self.detected_junctions:
-            if junction['counter'] > 10:
+            if junction['counter'] > self.min_detections_in_area:
                 position = junction['position']
                 orientations = junction['orientations']
                 rospy.loginfo(f'Junction detected at: {position} with {orientations}')
