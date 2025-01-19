@@ -3,9 +3,10 @@ import numpy as np
 import cv2
 from nav_msgs.msg import OccupancyGrid
 from skimage.morphology import skeletonize
-from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg import PointStamped,Point
 from visualization_msgs.msg import MarkerArray, Marker
 from nav_msgs.msg import Odometry
+from fla_msgs.msg import Junction, JunctionArray
 import math
 
 class JunctionDetectionNode:
@@ -25,6 +26,8 @@ class JunctionDetectionNode:
 
         # Publisher
         self.marker_pub = rospy.Publisher("/junction_arrows_array", MarkerArray, queue_size=10)
+        # we will publish the Junctions as Junctions Array
+        self.junction_pub = rospy.Publisher("/junctions_array",JunctionArray, queue_size = 10)
 
 
     def uav_odom_callback(self, msg):
@@ -208,12 +211,20 @@ class JunctionDetectionNode:
         self.marker_pub.publish(marker_array)
 
     def publish_final_junctions(self):
+        junction_array = JunctionArray()
         for junction in self.detected_junctions:
             if junction['counter'] > self.min_detections_in_area:
+                j = Junction()         
                 position = junction['position']
                 orientations = junction['orientations']
+                j.position = Point(*position)
+                j.angles = orientations
                 detections = junction['counter']
+                junction_array.junctions.append(j)
                 rospy.loginfo(f'Junction detected at: {position} with {orientations} and {detections}')
+        self.junction_pub.publish(junction_array)
+
+
 
     def visualize_junctions(self, grid_map, junction_orientations, skeleton, width, height, square_size):
         skeleton_display = cv2.resize((skeleton * 255).astype(np.uint8), (500, 500), interpolation=cv2.INTER_NEAREST)
