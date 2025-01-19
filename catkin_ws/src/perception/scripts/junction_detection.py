@@ -17,6 +17,7 @@ class JunctionDetectionNode:
         self.detected_junctions = []
         self.min_dis_new_junction = 30.0
         self.min_detections_in_area = 10
+        self.square_size = 20
 
         # Subscribers
         rospy.Subscriber("/current_state_est", Odometry, self.uav_odom_callback)
@@ -47,13 +48,15 @@ class JunctionDetectionNode:
             for junction in self.detected_junctions:
                 old_counter = junction['counter']
                 if np.linalg.norm(junction['position'] - new_det_jun[0]) < self.min_dis_new_junction:
-                    junction['position'] = (new_det_jun[0] + junction['position'] * old_counter) / (old_counter + 1)
                     new_orientations = []
                     for orientation in new_det_jun[1]:
                         for old_orientation in junction['orientations']:
                             angle = self.close_angle(old_orientation, orientation, old_counter)
                             if angle is not None:
                                 new_orientations.append(angle)
+                    if len(new_orientations) < len(junction['orientations']):
+                        continue
+                    junction['position'] = (new_det_jun[0] + junction['position'] * old_counter) / (old_counter + 1)
                     junction['orientations'] = new_orientations
                     junction['counter'] = old_counter + 1
                     return
@@ -83,7 +86,9 @@ class JunctionDetectionNode:
         grid_map = cv2.dilate(grid_map, kernel, iterations=1)
 
         junction_orientations, skeleton = self.detect_junctions_with_orientations(grid_map, width, height)
-        junction_orientations = self.filter_oriented_junctions_in_square(junction_orientations, width, height, 25)
+
+        junction_orientations = self.filter_oriented_junctions_in_square(junction_orientations, width, height, self.square_size)
+
         filtered_junction_orientations = [entry for entry in junction_orientations if len(entry[1]) >= 3]
 
         junction_orientations_in_world_frame = self.tf_to_world_coords(filtered_junction_orientations, resolution, origin, width)
@@ -91,7 +96,7 @@ class JunctionDetectionNode:
 
         self.publish_final_junctions()
         self.publish_junction_arrows()
-        self.visualize_junctions(grid_map, filtered_junction_orientations, skeleton, width, height, 25)
+        self.visualize_junctions(grid_map, filtered_junction_orientations, skeleton, width, height, self.square_size)
 
     def mean_of_angles(self, radians):
         avg_sin = sum(math.sin(r) for r in radians) / len(radians)
@@ -207,7 +212,8 @@ class JunctionDetectionNode:
             if junction['counter'] > self.min_detections_in_area:
                 position = junction['position']
                 orientations = junction['orientations']
-                rospy.loginfo(f'Junction detected at: {position} with {orientations}')
+                detections = junction['counter']
+                rospy.loginfo(f'Junction detected at: {position} with {orientations} and {detections}')
 
     def visualize_junctions(self, grid_map, junction_orientations, skeleton, width, height, square_size):
         skeleton_display = cv2.resize((skeleton * 255).astype(np.uint8), (500, 500), interpolation=cv2.INTER_NEAREST)
