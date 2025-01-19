@@ -238,6 +238,14 @@ Visualization Manager:
       Unreliable: false
       Use Timestamp: false
       Value: false
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /junction_arrows
+      Name: Marker
+      Namespaces:
+        junction_arrows: true
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -266,7 +274,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 149.22549438476562
+      Distance: 110.7976303100586
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -274,17 +282,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -1.1298352479934692
-        Y: 0.5175541639328003
-        Z: -0.11812497675418854
+        X: -15.632166862487793
+        Y: 1.9640713930130005
+        Z: -0.23051951825618744
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.0802026987075806
+      Pitch: 1.5152031183242798
       Target Frame: body
-      Yaw: 4.803586959838867
+      Yaw: 1.6104047298431396
     Saved: ~
 Window Geometry:
   Displays:
