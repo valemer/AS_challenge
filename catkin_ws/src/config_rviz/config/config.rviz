@@ -6,6 +6,7 @@ Panels:
       Expanded:
         - /TF1/Frames1
         - /TF1/Tree1
+        - /MarkerArray4
       Splitter Ratio: 0.5058823823928833
     Tree Height: 1076
   - Class: rviz/Selection
@@ -238,10 +239,10 @@ Visualization Manager:
       Unreliable: false
       Use Timestamp: false
       Value: false
-    - Class: rviz/Marker
+    - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /junction_arrows
-      Name: Marker
+      Marker Topic: /junction_arrows_array
+      Name: MarkerArray
       Namespaces:
         junction_arrows: true
       Queue Size: 100
@@ -274,7 +275,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 110.7976303100586
+      Distance: 164.44586181640625
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1

@@ -4,7 +4,7 @@ import cv2
 from nav_msgs.msg import OccupancyGrid
 from skimage.morphology import skeletonize
 from geometry_msgs.msg import PointStamped
-from visualization_msgs.msg import Marker
+from visualization_msgs.msg import MarkerArray, Marker
 from nav_msgs.msg import Odometry
 import math
 
@@ -23,7 +23,8 @@ class JunctionDetectionNode:
         rospy.Subscriber("/occupancy_grid", OccupancyGrid, self.occupancy_grid_callback)
 
         # Publisher
-        self.marker_pub = rospy.Publisher("/junction_arrows", Marker, queue_size=10)
+        self.marker_pub = rospy.Publisher("/junction_arrows_array", MarkerArray, queue_size=10)
+
 
     def uav_odom_callback(self, msg):
         self.current_uav_height = msg.pose.pose.position.z
@@ -152,14 +153,18 @@ class JunctionDetectionNode:
         return [((y, x), orientations) for (y, x), orientations in junction_orientations
                 if margin_y <= y < margin_y + square_size and margin_x <= x < margin_x + square_size]
 
+    from visualization_msgs.msg import MarkerArray
+
     def publish_junction_arrows(self):
+        marker_array = MarkerArray()  # Create a MarkerArray message
         marker_id = 0
+
         for junction in self.detected_junctions:
             if junction['counter'] > self.min_detections_in_area:
                 x_world, y_world, z_world = junction['position']
                 for angle in junction['orientations']:
-                    dx = 5.0 * math.cos(angle)
-                    dy = 5.0 * math.sin(angle)
+                    dx = 15.0 * math.cos(angle)
+                    dy = 15.0 * math.sin(angle)
 
                     marker = Marker()
                     marker.header.frame_id = "world"
@@ -169,6 +174,7 @@ class JunctionDetectionNode:
                     marker.type = Marker.ARROW
                     marker.action = Marker.ADD
 
+                    # Arrow start and end points
                     start_point = PointStamped().point
                     start_point.x = x_world
                     start_point.y = y_world
@@ -180,16 +186,21 @@ class JunctionDetectionNode:
                     end_point.z = z_world
 
                     marker.points = [start_point, end_point]
-                    marker.scale.x = 0.1
-                    marker.scale.y = 0.2
-                    marker.scale.z = 0.2
+
+                    # Arrow properties
+                    marker.scale.x = 1.5  # Shaft diameter
+                    marker.scale.y = 3.0  # Head diameter
+                    marker.scale.z = 3.0  # Head length
                     marker.color.r = 1.0
                     marker.color.g = 0.0
                     marker.color.b = 0.0
-                    marker.color.a = 1.0
+                    marker.color.a = 1.0  # Fully opaque
 
-                    self.marker_pub.publish(marker)
+                    marker_array.markers.append(marker)  # Add the marker to the MarkerArray
                     marker_id += 1
+
+        # Publish the MarkerArray
+        self.marker_pub.publish(marker_array)
 
     def publish_final_junctions(self):
         for junction in self.detected_junctions:
