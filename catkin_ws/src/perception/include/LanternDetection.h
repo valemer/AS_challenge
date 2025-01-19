@@ -24,14 +24,11 @@
 struct TrackedObject {
     geometry_msgs::Point position;
     std::vector<geometry_msgs::Point> detections;
-    
-
 };
 
 class LanternDetectionNode {
 private:
     ros::NodeHandle nh_;
-    std::vector<geometry_msgs::Point> all_detected_lanterns_;  // Store all detected lantern locations
 
     message_filters::Subscriber<sensor_msgs::Image> image_sub_;
     message_filters::Subscriber<sensor_msgs::PointCloud2> cloud_sub_;
@@ -41,16 +38,15 @@ private:
     ros::Publisher pub_markers_; // For RViz visualization
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
-    std::unordered_map<int, TrackedObject> tracked_objects_;
+    std::unordered_map<unsigned long, TrackedObject> tracked_objects_;
     double min_distance_; // Minimum distance to consider two objects separate
     int min_detections_;   // Minimum detections to consider a valid object
     int min_yellow_points_;
-    bool first_lantern_detected_ = false;  // Flag to handle the first lantern separately
 
 public:
     LanternDetectionNode();
 
-    double distance(const geometry_msgs::Point& a, const geometry_msgs::Point& b);
+    static double distance(const geometry_msgs::Point& a, const geometry_msgs::Point& b);
 
     void updateTrackedObjects(const geometry_msgs::Point& detected_point);
 

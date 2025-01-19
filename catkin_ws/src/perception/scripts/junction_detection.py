@@ -6,6 +6,8 @@ from skimage.morphology import skeletonize
 from geometry_msgs.msg import PointStamped
 from visualization_msgs.msg import MarkerArray, Marker
 from nav_msgs.msg import Odometry
+from cv_bridge import CvBridge
+from sensor_msgs.msg import Image
 import math
 
 class JunctionDetectionNode:
@@ -16,8 +18,8 @@ class JunctionDetectionNode:
         self.current_uav_height = 0.0
         self.detected_junctions = []
         self.min_dis_new_junction = 30.0
-        self.min_detections_in_area = 10
-        self.square_size = 20
+        self.min_detections_in_area = 30
+        self.square_size = 15
 
         # Subscribers
         rospy.Subscriber("/current_state_est", Odometry, self.uav_odom_callback)
@@ -25,6 +27,8 @@ class JunctionDetectionNode:
 
         # Publisher
         self.marker_pub = rospy.Publisher("/junction_arrows_array", MarkerArray, queue_size=10)
+        self.image_pub = rospy.Publisher("/junction_visualization", Image, queue_size=10)
+
 
 
     def uav_odom_callback(self, msg):
@@ -216,22 +220,32 @@ class JunctionDetectionNode:
                 rospy.loginfo(f'Junction detected at: {position} with {orientations} and {detections}')
 
     def visualize_junctions(self, grid_map, junction_orientations, skeleton, width, height, square_size):
+        # Convert skeleton to displayable format
         skeleton_display = cv2.resize((skeleton * 255).astype(np.uint8), (500, 500), interpolation=cv2.INTER_NEAREST)
+
+        # Highlight junctions on the grid map
         colored_map = cv2.cvtColor((grid_map == 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR)
         red_color = [0, 0, 255]
         for (y, x), _ in junction_orientations:
             cv2.circle(colored_map, (x, y), radius=2, color=red_color, thickness=-1)
 
+        # Draw a rectangle for the central filtering square
         margin_x = (width - square_size) // 2
         margin_y = (height - square_size) // 2
         cv2.rectangle(colored_map, (margin_x, margin_y), (margin_x + square_size - 1, margin_y + square_size - 1),
                       (0, 255, 0), 1)
 
+        # Resize the map for consistent visualization
         highlighted_map = cv2.resize(colored_map, (500, 500), interpolation=cv2.INTER_NEAREST)
 
-        cv2.imshow("Skeleton (Resized)", skeleton_display)
-        cv2.imshow("Junctions Highlighted (Resized)", highlighted_map)
-        cv2.waitKey(1)
+        # Convert the highlighted map to a ROS image
+        bridge = CvBridge()
+        try:
+            ros_image = bridge.cv2_to_imgmsg(highlighted_map, encoding="bgr8")  # Convert to ROS Image
+            self.image_pub.publish(ros_image)  # Publish the image
+        except Exception as e:
+            rospy.logerr(f"Failed to convert and publish image: {e}")
+
 
 if __name__ == "__main__":
     try:

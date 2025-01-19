@@ -27,42 +27,6 @@ double LanternDetectionNode::distance(const geometry_msgs::Point& a, const geome
 }
 
 void LanternDetectionNode::updateTrackedObjects(const geometry_msgs::Point& detected_point) {
-    // Handle the first detection separately
-    if (!first_lantern_detected_) {
-        first_lantern_detected_ = true;  // Mark the first lantern as processed
-        geometry_msgs::Point new_point;
-        new_point.x = detected_point.x;
-        new_point.y = detected_point.y;
-        new_point.z = detected_point.z;
-        all_detected_lanterns_.push_back(new_point);
-
-        // Add it to tracked objects
-        int new_id = tracked_objects_.size();
-        tracked_objects_[new_id] = {detected_point, {detected_point}};
-
-        ROS_INFO("First lantern detected. Position: x = %.2f, y = %.2f, z = %.2f",
-                 new_point.x, new_point.y, new_point.z);
-
-        // Print the updated list
-        ROS_INFO("Updated list of all detected lanterns:");
-        for (size_t i = 0; i < all_detected_lanterns_.size(); ++i) {
-            ROS_INFO("[%lu] x: %.2f, y: %.2f, z: %.2f",
-                     i, all_detected_lanterns_[i].x, all_detected_lanterns_[i].y, all_detected_lanterns_[i].z);
-        }
-        return;
-    }
-
-    // Check if the new detected point is at least 40 units away from all previously detected lanterns
-    for (const auto& point : all_detected_lanterns_) {
-        if (distance(point, detected_point) < 40.0) {
-            //ROS_WARN("Rejected detected point at x = %.2f, y = %.2f, z = %.2f. Too close to a previously detected lantern.",
-                    // detected_point.x, detected_point.y, detected_point.z);
-            return; // Ignore this detection
-        }
-    }
-
-    // Handle other detections normally
-
     bool matched = false;
     for (auto& [id, obj] : tracked_objects_) {
         if (distance(obj.position, detected_point) < min_distance_) {
@@ -71,25 +35,14 @@ void LanternDetectionNode::updateTrackedObjects(const geometry_msgs::Point& dete
             matched = true;
             break;
         }
+        if (distance(obj.position, detected_point) < 40.0) {
+            return;
+        }
     }
 
     if (!matched) {
-        int new_id = tracked_objects_.size();
+        const auto new_id = tracked_objects_.size();
         tracked_objects_[new_id] = {detected_point, {detected_point}};
-
-        // Add the new point to the list of all detected lanterns
-        geometry_msgs::Point new_point;
-        new_point.x = detected_point.x;
-        new_point.y = detected_point.y;
-        new_point.z = detected_point.z;
-        all_detected_lanterns_.push_back(new_point);  // Store the new lantern location
-
-        // Print the updated list of all detected lanterns
-        ROS_INFO("Updated list of all detected lanterns:");
-        for (size_t i = 0; i < all_detected_lanterns_.size(); ++i) {
-            ROS_INFO("[%lu] x: %.2f, y: %.2f, z: %.2f",
-                     i, all_detected_lanterns_[i].x, all_detected_lanterns_[i].y, all_detected_lanterns_[i].z);
-        }
     }
 }
 
@@ -112,6 +65,10 @@ geometry_msgs::Point LanternDetectionNode::computeCentroid(const std::vector<geo
 void LanternDetectionNode::publishMarkers() {
     visualization_msgs::MarkerArray marker_array;
 
+    geometry_msgs::PoseArray all_lanterns_msg;
+    all_lanterns_msg.header.stamp = ros::Time::now();
+    all_lanterns_msg.header.frame_id = "world";
+
     for (const auto& [id, obj] : tracked_objects_) {
         if (obj.detections.size() >= min_detections_) {
             visualization_msgs::Marker marker;
@@ -124,29 +81,24 @@ void LanternDetectionNode::publishMarkers() {
             marker.pose.position.x = obj.position.x;
             marker.pose.position.y = obj.position.y;
             marker.pose.position.z = obj.position.z;
-            marker.scale.x = 0.5; // Big red ball
-            marker.scale.y = 0.5;
-            marker.scale.z = 0.5;
+            marker.pose.orientation.w = 1.0;
+            marker.scale.x = 5.0; // Big red ball
+            marker.scale.y = 5.0;
+            marker.scale.z = 5.0;
             marker.color.r = 1.0;
             marker.color.g = 0.0;
             marker.color.b = 0.0;
             marker.color.a = 1.0;
             marker_array.markers.push_back(marker);
+
+            geometry_msgs::Pose pose;
+            pose.position = obj.position;  // Copy the lantern location to the Pose
+            pose.orientation.w = 1.0;  // Default orientation
+            all_lanterns_msg.poses.push_back(pose);
         }
     }
 
     pub_markers_.publish(marker_array);
-
-    // Publish all detected lanterns as an array
-    geometry_msgs::PoseArray all_lanterns_msg;
-    all_lanterns_msg.header.stamp = ros::Time::now();
-    all_lanterns_msg.header.frame_id = "world";
-    for (const auto& point : all_detected_lanterns_) {
-        geometry_msgs::Pose pose;
-        pose.position = point;  // Copy the lantern location to the Pose
-        pose.orientation.w = 1.0;  // Default orientation
-        all_lanterns_msg.poses.push_back(pose);
-    }
     pub_all_lanterns_.publish(all_lanterns_msg);
 }
 

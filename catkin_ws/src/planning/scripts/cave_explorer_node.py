@@ -261,7 +261,7 @@ class CaveExplorerNode:
                         continue
                     distance_to_goal = np.linalg.norm(sampled_point - goal_point)
                     distance_from_start = np.linalg.norm(sampled_point - start_position)
-                    value = 3 * distance_from_start - 5 * distance_to_goal + 10 * max_radius
+                    value = 3 * distance_from_start - 5 * distance_to_goal + 15 * max_radius
                     if value > best_value:
                         best_value = value
                         best_node = {'position': sampled_point, 'father': current_node, 'radius': max_radius}
