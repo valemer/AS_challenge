@@ -4,9 +4,10 @@ import numpy as np
 import cv2
 from nav_msgs.msg import OccupancyGrid, Odometry  # <-- Odometry is from nav_msgs
 from skimage.morphology import skeletonize
-from scipy.spatial.distance import cdist
 from geometry_msgs.msg import PointStamped
-# Removed Marker import since we are returning to PointStamped
+from visualization_msgs.msg import Marker
+from nav_msgs.msg import Odometry
+import math
 
 # -----------------------------
 # Global variables and params
@@ -67,115 +68,49 @@ def occupancy_grid_callback(msg):
     # Flip horizontally (depending on your map conventions)
     grid_map = np.fliplr(grid_map)
 
-    # Strengthen borders by dilating obstacles
-    kernel = np.ones((8, 8), np.uint8)
-    grid_map = cv2.dilate(grid_map, kernel, iterations=1)
+    # Strengthen borders by dilating the obstacles
+    kernel = np.ones((5, 5), np.uint8)  # Increased kernel size to thicken occupied areas
+    grid_map = cv2.dilate(grid_map, kernel, iterations=1)  # Increased iterations for thicker obstacles
 
-    # Detect junctions
-    junction_map, skeleton = detect_junctions_with_curves(grid_map, width, height)
+    # Detect junctions and their orientations
+    junction_orientations, skeleton = detect_junctions_with_orientations(grid_map, width, height)
 
-    # Filter to the central 25x25 region
-    junction_map = filter_junctions_in_square(junction_map, width, height, 25)
+    # Filter junctions outside the inner 25x25 square
+    junction_orientations = filter_oriented_junctions_in_square(junction_orientations, width, height, 25)
 
-    # Convert to pixel coords
-    new_junction_points_pixels = np.argwhere(junction_map > 0)
+    # Filter junctions with less than three outgoings
+    filtered_junction_orientations = [entry for entry in junction_orientations if len(entry[1]) >= 3]
 
-    # Confirm and store junctions in real-world coords
-    confirm_and_store_junctions(
-        new_junction_points_pixels, resolution, origin, current_uav_height, width
-    )
+    # Publish junction arrows as RViz markers
+    publish_junction_arrows(filtered_junction_orientations, resolution, origin, current_uav_height, width)
 
-    # Publish all stable junctions (old + new) as separate PointStamped messages
-    publish_all_stable_junctions()
-
-    # Visualization
-    visualize_junctions(grid_map, junction_map, skeleton, width, height, 25)
+    # Visualize the results
+    visualize_junctions(grid_map, filtered_junction_orientations, skeleton, width, height, 25)
 
 
-def confirm_and_store_junctions(junction_points_pixels, resolution, origin, height, width):
+def mean_of_angles(radians):
+    # Calculate the average sine and cosine
+    avg_sin = sum(math.sin(r) for r in radians) / len(radians)
+    avg_cos = sum(math.cos(r) for r in radians) / len(radians)
+
+    # Compute the mean angle in radians
+    return math.atan2(avg_sin, avg_cos)
+
+
+def detect_junctions_with_orientations(grid_map, width, height, neighbor_threshold=14, distance_threshold=10):
     """
-    Convert the newly detected junctions from pixel to world coords, 
-    keep them in a rolling buffer, and check if any remain stable 
-    (present in all frames) => add to stable_junctions.
-    """
-    global recent_junction_points_world, stable_junctions
+    Detect junctions and their orientations by checking in 15-degree increments around each junction point.
 
-    # Convert pixel coords to world coords for this frame
-    current_frame_world_points = []
-    for (jy, jx) in junction_points_pixels:
-        x_world = origin.position.x + (width - 1 - jx) * resolution
-        y_world = origin.position.y + (jy * resolution)
-        z_world = height
-        current_frame_world_points.append((x_world, y_world, z_world))
+    Parameters:
+        grid_map: 2D NumPy array (0 = free, 1 = occupied).
+        width: Width of the grid map.
+        height: Height of the grid map.
+        neighbor_threshold: Minimum neighbors for a pixel to qualify as a junction.
+        distance_threshold: Number of free cells required in a direction to confirm an exit.
 
-    # Add current frame's detections to rolling list
-    recent_junction_points_world.append(current_frame_world_points)
-    if len(recent_junction_points_world) > MAX_STORED_FRAMES:
-        recent_junction_points_world.pop(0)
-
-    # Only proceed if we have N=FRAMES_REQUIRED frames stored
-    if len(recent_junction_points_world) < FRAMES_REQUIRED:
-        return
-
-    # The most recent set of junctions in world coords
-    latest_junctions_world = recent_junction_points_world[-1]
-
-    # For each junction in the latest frame, check if it appears in all previous frames
-    # within cross_frame_threshold (REAL_WORLD_THRESHOLD/2).
-    for junction_w in latest_junctions_world:
-        # If already stable, skip
-        if any(within_threshold(junction_w, sj, REAL_WORLD_THRESHOLD) for sj in stable_junctions):
-            continue
-
-        # Check the preceding frames to see if there's a matching junction
-        # in each older frame
-        found_in_all_previous = True
-        for older_frame_idx in range(len(recent_junction_points_world) - 1):
-            older_junctions_world = recent_junction_points_world[older_frame_idx]
-            # Are we within cross_frame_threshold for at least one junction in that older frame?
-            if not any(within_threshold(junction_w, oj, cross_frame_threshold) for oj in older_junctions_world):
-                found_in_all_previous = False
-                break
-
-        # If found in all frames => stable
-        if found_in_all_previous:
-            # Check if it's at least REAL_WORLD_THRESHOLD away from all stable junctions
-            # (so we don't duplicate an already stable junction)
-            if not any(within_threshold(junction_w, sj, REAL_WORLD_THRESHOLD) for sj in stable_junctions):
-                stable_junctions.append(junction_w)
-                rospy.loginfo(
-                    f"[junction_detection] New stable junction found: x={junction_w[0]:.2f}, "
-                    f"y={junction_w[1]:.2f}, z={junction_w[2]:.2f}"
-                )
-
-
-def publish_all_stable_junctions():
-    """
-    Publish each stable junction as a separate PointStamped message.
-    
-    """
-    global confirmed_junction_pub, stable_junctions
-
-    # Create publisher if not yet created
-    if confirmed_junction_pub is None:
-        # Adjust 'queue_size' if you like, 
-        # but the main setting is in RViz (History length / Decay Time).
-        confirmed_junction_pub = rospy.Publisher("/junction_points", PointStamped, queue_size=10)
-
-    # Publish each stable junction individually
-    for (x, y, z) in stable_junctions:
-        msg = PointStamped()
-        msg.header.frame_id = "world"
-        msg.header.stamp = rospy.Time.now()
-        msg.point.x = x
-        msg.point.y = y
-        msg.point.z = z
-        confirmed_junction_pub.publish(msg)
-
-
-def detect_junctions_with_curves(grid_map, width, height, neighbor_threshold=14, min_distance=5):
-    """
-    Skeletonize the free space, then detect junctions as branch points.
+    Returns:
+        junction_orientations: List of tuples (junction position, list of grouped exit orientations in radians).
+        skeleton: Skeletonized version of the free space.
     """
     free_space = (grid_map == 0).astype(np.uint8)
     skeleton = skeletonize(free_space).astype(np.uint8)
@@ -187,55 +122,135 @@ def detect_junctions_with_curves(grid_map, width, height, neighbor_threshold=14,
     neighbor_count = cv2.filter2D(skeleton, -1, kernel)
     junction_map = ((neighbor_count >= neighbor_threshold) & (skeleton > 0)).astype(np.uint8)
 
-    # Optionally cluster close junctions
+    # Find junction points
     junction_points = np.argwhere(junction_map > 0)
-    if len(junction_points) > 1:
-        distances = cdist(junction_points, junction_points)
-        clusters = cluster_junctions(junction_points, distances, min_distance)
-        pruned_junction_map = np.zeros_like(junction_map)
-        for point in clusters:
-            pruned_junction_map[tuple(point)] = 1
-        return pruned_junction_map, skeleton
 
-    return junction_map, skeleton
+    # Detect orientations for each junction
+    junction_orientations = []
+    for y, x in junction_points:
+        orientations = []
+        current_group = []
+        groups = []
+        for index, angle in enumerate(range(0, 360, 15)):  # 15-degree increments
+            radians = math.radians(angle)
+            dx = math.cos(radians)
+            dy = math.sin(radians)
+
+            free_cells = 0
+            for step in range(1, distance_threshold + 1):
+                nx = int(x + step * dx)
+                ny = int(y + step * dy)
+                if 0 <= ny < height and 0 <= nx < width and grid_map[ny, nx] == 0:
+                    free_cells += 1
+                else:
+                    break
+
+            if free_cells >= distance_threshold:
+                # Add angle to the current group
+                current_group.append({'idx': index, 'angle': math.atan2(dy, -dx)})
+            else:
+                # If the current group has entries, calculate the mean and start a new group
+                if current_group:
+                    groups.append(current_group)
+                    current_group = []
+
+        # Finalize the last group
+        if current_group:
+            if len(groups) > 0 and groups[0][0]['idx'] == 0:
+                groups[0].extend(current_group)
+            else:
+                groups.append(current_group)
+
+        for group in groups:
+            orientations.append(mean_of_angles([item["angle"] for item in group]))
 
 
-def cluster_junctions(points, distances, min_distance):
+        junction_orientations.append(((y, x), orientations))
+
+    return junction_orientations, skeleton
+
+
+def filter_oriented_junctions_in_square(junction_orientations, width, height, square_size):
     """
-    Cluster nearby junction points into single representative points.
-    """
-    clustered_points = []
-    visited = set()
-    for i, point in enumerate(points):
-        if i in visited:
-            continue
-        cluster = [point]
-        visited.add(i)
-        for j, dist in enumerate(distances[i]):
-            if dist < min_distance and j not in visited:
-                cluster.append(points[j])
-                visited.add(j)
-        cluster_center = np.mean(cluster, axis=0).astype(int)
-        clustered_points.append(cluster_center)
-    return np.array(clustered_points)
+    Filter out junctions and their orientations outside a central square of the given size.
 
+    Parameters:
+        junction_orientations: List of tuples (junction position, list of exit orientations in radians).
+        width: Width of the map.
+        height: Height of the map.
+        square_size: Size of the central square.
 
-def filter_junctions_in_square(junction_map, width, height, square_size):
-    """
-    Filter out junctions outside a central square of side 'square_size'.
+    Returns:
+        Filtered list of junctions with orientations.
     """
     margin_x = (width - square_size) // 2
     margin_y = (height - square_size) // 2
-    filtered_junction_map = np.zeros_like(junction_map)
-
-    coords = np.argwhere(junction_map > 0)
-    for y, x in coords:
+    filtered_orientations = []
+    for (y, x), orientations in junction_orientations:
         if margin_y <= y < margin_y + square_size and margin_x <= x < margin_x + square_size:
-            filtered_junction_map[y, x] = 1
-    return filtered_junction_map
+            filtered_orientations.append(((y, x), orientations))
+    return filtered_orientations
 
 
-def visualize_junctions(grid_map, junction_map, skeleton, width, height, square_size):
+def publish_junction_arrows(junction_orientations, resolution, origin, height, width):
+    """
+    Publish arrows representing junction exits for RViz.
+
+    Parameters:
+        junction_orientations: List of tuples (junction position, list of exit orientations in radians).
+        resolution: Resolution of the grid map (meters per cell).
+        origin: Origin of the map in the world frame (geometry_msgs/Pose).
+        height: Current height of the UAV (z-coordinate).
+        width: Width of the grid map.
+    """
+    marker_pub = rospy.Publisher("/junction_arrows", Marker, queue_size=10)
+    marker_id = 0
+
+    for (y_index, x_index), orientations in junction_orientations:
+        # Calculate world position of the junction
+        x_world = origin.position.x + ((width - 1 - x_index) * resolution)
+        y_world = origin.position.y + (y_index * resolution)
+
+        for angle in orientations:
+            # Calculate the arrow's end point (5m length in the direction of the angle)
+            dx = 5.0 * math.cos(angle)
+            dy = 5.0 * math.sin(angle)
+
+            marker = Marker()
+            marker.header.frame_id = "world"
+            marker.header.stamp = rospy.Time.now()
+            marker.ns = "junction_arrows"
+            marker.id = marker_id
+            marker.type = Marker.ARROW
+            marker.action = Marker.ADD
+
+            # Arrow start and end points
+            start_point = PointStamped().point
+            start_point.x = x_world
+            start_point.y = y_world
+            start_point.z = height
+
+            end_point = PointStamped().point
+            end_point.x = x_world + dx
+            end_point.y = y_world + dy
+            end_point.z = height
+
+            marker.points = [start_point, end_point]
+
+            # Arrow properties
+            marker.scale.x = 0.1  # Shaft diameter
+            marker.scale.y = 0.2  # Head diameter
+            marker.scale.z = 0.2  # Head length
+            marker.color.r = 1.0
+            marker.color.g = 0.0
+            marker.color.b = 0.0
+            marker.color.a = 1.0  # Fully opaque
+
+            marker_pub.publish(marker)
+            marker_id += 1
+
+
+def visualize_junctions(grid_map, junction_orientations, skeleton, width, height, square_size):
     """
     Visualize in a CV window the grid map, skeleton, and the detected junctions.
     """
@@ -247,16 +262,13 @@ def visualize_junctions(grid_map, junction_map, skeleton, width, height, square_
     # Overlay junctions on the free-space map
     colored_map = cv2.cvtColor((grid_map == 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR)
     red_color = [0, 0, 255]
-    coords = np.argwhere(junction_map > 0)
-    for (y, x) in coords:
+    for (y, x), _ in junction_orientations:
         cv2.circle(colored_map, (x, y), radius=2, color=red_color, thickness=-1)
 
     # Draw filtering square
     margin_x = (width - square_size) // 2
     margin_y = (height - square_size) // 2
-    cv2.rectangle(colored_map,
-                  (margin_x, margin_y),
-                  (margin_x + square_size - 1, margin_y + square_size - 1),
+    cv2.rectangle(colored_map, (margin_x, margin_y), (margin_x + square_size - 1, margin_y + square_size - 1),
                   (0, 255, 0), 1)
 
     highlighted_map = cv2.resize(colored_map, (500, 500), interpolation=cv2.INTER_NEAREST)
