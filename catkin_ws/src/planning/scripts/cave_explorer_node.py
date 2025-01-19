@@ -31,10 +31,17 @@ class CaveExplorerNode:
         self.best_point = None  # Best point reached
         self.running = False
 
+        # Superior goal point variables
+        self.superior_goal_point = None  # To store the superior goal point
+        self.use_superior_goal = False   # Flag to determine if a superior goal is active
+
         # Subscribers
         rospy.Subscriber("current_state_est", Odometry, self.odom_callback)
         rospy.Subscriber("/octomap_point_cloud_centers", PointCloud2, self.point_cloud_callback)
         rospy.Subscriber("/control_planner", Bool, self.control)
+
+         # New subscriber for superior waypoint receiving
+        rospy.Subscriber("/emergency_superior_waypoint_target", Point, self.superior_goal_callback)
 
         # Publishers
         self.path_pub = rospy.Publisher("path_marker_array", MarkerArray, queue_size=1)
@@ -43,6 +50,15 @@ class CaveExplorerNode:
 
         rospy.loginfo("CaveExplorerNode initialized. Waiting for position update...")
         self.explore()
+
+    def superior_goal_callback(self, msg):
+        """
+        Callback to receive superior goal points.
+        """
+        self.superior_goal_point = np.array([msg.x, msg.y, msg.z])
+        self.use_superior_goal = True  # Activate superior goal point
+        rospy.loginfo(f"Received superior goal point: {self.superior_goal_point}")
+
 
     def odom_callback(self, msg):
         """Updates current position, orientation, and velocity from odometry."""
@@ -214,6 +230,7 @@ class CaveExplorerNode:
         rate = rospy.Rate(1)
         rate.sleep()
         best_node = None
+
         while not rospy.is_shutdown():
 
             # Wait for the first position update
@@ -225,36 +242,47 @@ class CaveExplorerNode:
             if not self.running:
                 continue
 
+            # Check if a superior goal point exists
+            if self.use_superior_goal:
+                goal_point = self.superior_goal_point
+                distance_to_superior_goal = np.linalg.norm(self.current_position - goal_point)
 
-            if best_node is not None:
-                dis = np.linalg.norm(self.current_position - best_node['father']['position'])
-                if dis > 0.5:
-                    continue
+                # If the superior goal point is reached, deactivate it
+                if distance_to_superior_goal < 0.5:  # Threshold for goal reached
+                    rospy.loginfo("Superior goal point reached. Resuming autonomous exploration.")
+                    self.use_superior_goal = False
+                    self.superior_goal_point = None
+                    continue  # Skip this loop iteration to allow switching back to autonomous exploration
 
+            else:
+                # Define an autonomous goal point 2 * max_planning_distance in front of the start
+                start_orientation = self.current_orientation
+                goal_point = self.current_position + 2 * self.max_planning_distance * np.dot(
+                    start_orientation, np.array([1.0, 0.0, 0.0])
+                )
+
+            # Exploration logic remains the same for both autonomous and superior goal points
             start_position = self.current_position
-            start_orientation = self.current_orientation
-
-            # Define a goal point 2 * max_planning_distance in front of the start
-            goal_point = start_position + 2 * self.max_planning_distance * np.dot(start_orientation, np.array([1.0, 0.0, 0.0]))
-
             point_nodes = [{'position': start_position, 'father': None, 'radius': 0.0}]
             best_node = point_nodes[0]
-
             best_node['radius'] = self.calculate_max_radius(best_node["position"])
 
             total_distance = 0.0
 
             while total_distance < self.max_planning_distance:
-                # Use the last node for exploration
                 current_node = best_node
-                forward_direction = np.dot(start_orientation, np.array([1.0, 0.0, 0.0])) if current_node['father'] is None else (current_node['position'] - current_node['father']['position']) / np.linalg.norm(current_node['position'] - current_node['father']['position'])
+                forward_direction = (
+                    np.dot(start_orientation, np.array([1.0, 0.0, 0.0]))
+                    if current_node['father'] is None
+                    else (current_node['position'] - current_node['father']['position'])
+                    / np.linalg.norm(current_node['position'] - current_node['father']['position'])
+                )
 
-                # Sample points
-                sampled_points = self.sample_sphere_directed(current_node['position'], forward_direction, current_node['radius'], self.max_sampling_angle_deg, self.sampling_angle_deg)
+                sampled_points = self.sample_sphere_directed(
+                    current_node['position'], forward_direction, current_node['radius'],
+                    self.max_sampling_angle_deg, self.sampling_angle_deg
+                )
 
-                #self.pub_sphere(current_node['position'], current_node['radius'])
-
-                # Evaluate sampled points and find the best one
                 best_value = -float('inf')
                 for sampled_point, max_radius in sampled_points:
                     if max_radius < self.min_radius:
@@ -266,21 +294,17 @@ class CaveExplorerNode:
                         best_value = value
                         best_node = {'position': sampled_point, 'father': current_node, 'radius': max_radius}
 
-                if np.linalg.norm(start_position - best_node['position']) < 0.1:
-                    best_node['radius'] = best_node['radius'] - 1
-                    rospy.logwarn('Start radius needs to be smallse!')
-
-                # Add the new best node to the list
                 point_nodes.append(best_node)
                 total_distance += np.linalg.norm(best_node['position'] - start_position)
 
             # Reconstruct and publish the path
-            rospy.logdebug("Maximum planning distance reached. Reconstructing and publishing path.")
+            rospy.loginfo("Maximum planning distance reached. Reconstructing and publishing path.")
             self.reconstruct_path(best_node)
             self.path_pub.publish(self.path_markers)
             self.path_markers = MarkerArray()
             self.cloud = []
             rate.sleep()
+
 
     def pub_sphere(self, point, radius):
         marker = Marker()

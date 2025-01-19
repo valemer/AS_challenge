@@ -2,6 +2,7 @@ import rospy
 from geometry_msgs.msg import Point
 from visualization_msgs.msg import MarkerArray
 from fla_msgs.msg import JunctionArray
+import numpy as np
 import math
 
 class BranchEntranceListener:
@@ -10,9 +11,11 @@ class BranchEntranceListener:
 
         # Blue dot positions
         self.branch_entrances = []
+        
 
         # Blue dot correspondence to junctions
         self.branch_sources = []
+        self.branch_sources_old = []
 
         # Path we have moved along
         self.visited_locations = []
@@ -41,6 +44,7 @@ class BranchEntranceListener:
                     entrance_point.y = junction.position.y + 10.0 * math.sin(angle)
                     entrance_point.z = junction.position.z
                     self.branch_entrances.append(entrance_point)
+                    rospy.loginfo(f"New branch entrance added: {entrance_point}")
                     self.branch_sources.append(new_len - i)
             self.list_len = new_len
 
@@ -52,39 +56,33 @@ class BranchEntranceListener:
             rospy.logwarn("No visited locations or branch entrances received yet.")
             return
 
-        new_branch_entrances = []
-        new_branch_sources = []
+        # Convert branch entrances and visited locations to NumPy arrays
+        branch_entrances_np = np.array([[entrance.x, entrance.y, entrance.z] for entrance in self.branch_entrances])
+        visited_locations_np = np.array([[loc.x, loc.y, loc.z] for loc in self.visited_locations])
 
-        # For each blue dot
-        for i, entrance in enumerate(self.branch_entrances):
-            min_distance = float('inf')
+        # Calculate distances between each branch entrance and each visited location
+        distances = np.linalg.norm(branch_entrances_np[:, np.newaxis, :] - visited_locations_np[np.newaxis, :, :], axis=2)
 
-            # Compare with path points
-            for point in self.visited_locations:
-                distance = math.sqrt(
-                    (entrance.x - point.x) ** 2 +
-                    (entrance.y - point.y) ** 2 +
-                    (entrance.z - point.z) ** 2
-                )
-                if distance < min_distance:
-                    min_distance = distance
+        # Find the minimum distance for each branch entrance
+        min_distances = np.min(distances, axis=1)
 
-            if min_distance >= self.min_distance:  # Threshold distance to drop the blue dot
-                new_branch_entrances.append(entrance)
-                new_branch_sources.append(self.branch_sources[i])
+        # Filter branch entrances and sources based on the minimum distance
+        mask = min_distances > self.min_distance
+        new_branch_entrances = branch_entrances_np[mask]
+        new_branch_sources = np.array(self.branch_sources)[mask]
 
-        if set(new_branch_sources) != set(self.branch_sources):
-            for source in set(self.branch_sources) - set(new_branch_sources):
+        if set(self.branch_sources_old) != set(new_branch_sources):
+            for source in set(self.branch_sources_old) - set(new_branch_sources):
                 rospy.loginfo(f"Used all branches for junction {source}")
-            if new_branch_entrances:
-                # Maybe there would be no branches left and we need to return. But because of the task logic
-                # when we go to all branches we will already obtain the lanterns and a new order will be given.
-                rospy.loginfo(f"Emergency waypoint {new_branch_entrances[-i]}")
-                self.emergency_pub.publish(new_branch_entrances[-1])
-            
+            if len(new_branch_entrances) > 0:
+                last_entrance = new_branch_entrances[-1]
+                emergency_point = Point(x=last_entrance[0], y=last_entrance[1], z=last_entrance[2])
+                rospy.loginfo(f"Emergency waypoint {emergency_point}")
+                self.emergency_pub.publish(emergency_point)
 
-        self.branch_entrances = new_branch_entrances
-        self.branch_sources = new_branch_sources
+        self.branch_entrances = [Point(x=entrance[0], y=entrance[1], z=entrance[2]) for entrance in new_branch_entrances]
+        self.branch_sources_old = self.branch_sources
+        self.branch_sources = new_branch_sources.tolist()
 
 if __name__ == '__main__':
     try:
