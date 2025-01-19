@@ -29,7 +29,7 @@ stable_junctions = []
 REAL_WORLD_THRESHOLD = 10.0
 
 # Use half this threshold for cross-frame consistency checks
-cross_frame_threshold = REAL_WORLD_THRESHOLD / 2.0
+cross_frame_threshold = REAL_WORLD_THRESHOLD / 3.0
 
 # Publisher handles
 confirmed_junction_pub = None
@@ -191,8 +191,7 @@ def confirm_and_store_junctions(junction_info_pixels, resolution, origin, height
         matched_angles_across_frames = [angles_latest]
 
         # Check older frames
-        for older_frame_idx in range(len(recent_junctions_world) - 1):
-            older_junctions = recent_junctions_world[older_frame_idx]
+        for older_junctions in recent_junctions_world[:-1]:
             matched_junc = None
             for oj in older_junctions:
                 if within_threshold(pos_latest, oj['pos'], cross_frame_threshold):
