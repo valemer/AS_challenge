@@ -21,6 +21,10 @@ cs_add_executable(lantern_detection
         src/LanternDetection.cpp
 )
 
+cs_add_executable(map_filter
+        src/MapFilter.cpp
+)
+
 cs_install()
 cs_export()
 
@@ -217,3 +221,8 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+catkin_install_python(PROGRAMS
+        scripts/junction_detection.py
+        DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)

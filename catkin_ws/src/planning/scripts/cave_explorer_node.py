@@ -261,17 +261,21 @@ class CaveExplorerNode:
                         continue
                     distance_to_goal = np.linalg.norm(sampled_point - goal_point)
                     distance_from_start = np.linalg.norm(sampled_point - start_position)
-                    value = distance_from_start - 10 * distance_to_goal + 20 * max_radius
+                    value = 3 * distance_from_start - 5 * distance_to_goal + 10 * max_radius
                     if value > best_value:
                         best_value = value
                         best_node = {'position': sampled_point, 'father': current_node, 'radius': max_radius}
+
+                if np.linalg.norm(start_position - best_node['position']) < 0.1:
+                    best_node['radius'] = best_node['radius'] - 1
+                    rospy.logwarn('Start radius needs to be smallse!')
 
                 # Add the new best node to the list
                 point_nodes.append(best_node)
                 total_distance += np.linalg.norm(best_node['position'] - start_position)
 
             # Reconstruct and publish the path
-            rospy.loginfo("Maximum planning distance reached. Reconstructing and publishing path.")
+            rospy.logdebug("Maximum planning distance reached. Reconstructing and publishing path.")
             self.reconstruct_path(best_node)
             self.path_pub.publish(self.path_markers)
             self.path_markers = MarkerArray()
