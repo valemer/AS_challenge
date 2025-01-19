@@ -11,12 +11,69 @@ import math
 # Global variable to store UAV height
 current_uav_height = 0.0
 
+detected_junctions = []
+
+min_dis_new_junction = 30.0
+
+
+
 def uav_odom_callback(msg):
     """
     Callback to update the UAV's current height from odometry.
     """
     global current_uav_height
     current_uav_height = msg.pose.pose.position.z
+
+
+def close_angle(angle1, angle2, old_size):
+    # Calculate the absolute difference
+    diff = abs(angle1 - angle2)
+
+    # Account for circular difference (e.g., 10 and 340 degrees)
+    diff = min(diff, 2 * math.pi - diff)
+
+    # Check if the difference is within Pi/4
+    if diff <= math.pi / 4:
+        x = old_size * math.cos(angle1) + math.cos(angle2)
+        y = old_size * math.sin(angle1) + math.sin(angle2)
+        weighted_mean_angle = math.atan2(y, x) % (2 * math.pi)
+        return weighted_mean_angle
+    else:
+        return None
+
+
+def add_to_detected_junctions(new_detected_junctions):
+    for new_det_jun in new_detected_junctions:
+        for junction in detected_junctions:
+            old_counter = junction['counter']
+            if np.linalg.norm(junction['position'] - new_det_jun[0]) < min_dis_new_junction:
+                junction['position'] = (new_det_jun[0] + junction['position'] * old_counter) / (old_counter + 1)
+                new_orientations = []
+                for orientation in new_det_jun[1]:
+                    for old_orientation in junction['orientations']:
+                        angle = close_angle(old_orientation, orientation, old_counter)
+                        if angle is not None:
+                            new_orientations.append(angle)
+                junction['orientations'] = new_orientations
+                junction['counter'] = old_counter + 1
+                return
+
+        detected_junctions.append({'position': new_det_jun[0], 'orientations': new_det_jun[1], 'counter': 1})
+
+def tf_to_world_coords(junctions, resolution, origin, width):
+
+    world_junctions = []
+
+    for (y_index, x_index), orientations in junctions:
+        # Calculate world position of the junction
+        x_world = origin.position.x + ((width - 1 - x_index) * resolution)
+        y_world = origin.position.y + (y_index * resolution)
+        z_world = current_uav_height
+
+        world_junctions.append((np.array([x_world, y_world, z_world]), orientations))
+
+    return world_junctions
+
 
 def occupancy_grid_callback(msg):
     """
@@ -47,8 +104,14 @@ def occupancy_grid_callback(msg):
     # Filter junctions with less than three outgoings
     filtered_junction_orientations = [entry for entry in junction_orientations if len(entry[1]) >= 3]
 
+    junction_orientations_in_world_frame = tf_to_world_coords(filtered_junction_orientations, resolution, origin, width)
+
+    add_to_detected_junctions(junction_orientations_in_world_frame)
+
+    publish_final_junctions()
+
     # Publish junction arrows as RViz markers
-    publish_junction_arrows(filtered_junction_orientations, resolution, origin, current_uav_height, width)
+    publish_junction_arrows()
 
     # Visualize the results
     visualize_junctions(grid_map, filtered_junction_orientations, skeleton, width, height, 25)
@@ -158,7 +221,7 @@ def filter_oriented_junctions_in_square(junction_orientations, width, height, sq
     return filtered_orientations
 
 
-def publish_junction_arrows(junction_orientations, resolution, origin, height, width):
+def publish_junction_arrows():
     """
     Publish arrows representing junction exits for RViz.
 
@@ -172,10 +235,11 @@ def publish_junction_arrows(junction_orientations, resolution, origin, height, w
     marker_pub = rospy.Publisher("/junction_arrows", Marker, queue_size=10)
     marker_id = 0
 
-    for (y_index, x_index), orientations in junction_orientations:
+    for pos, orientations in detected_junctions:
         # Calculate world position of the junction
-        x_world = origin.position.x + ((width - 1 - x_index) * resolution)
-        y_world = origin.position.y + (y_index * resolution)
+        x_world = pos[0]
+        y_world = pos[1]
+        z_world = pos[2]
 
         for angle in orientations:
             # Calculate the arrow's end point (5m length in the direction of the angle)
@@ -194,12 +258,12 @@ def publish_junction_arrows(junction_orientations, resolution, origin, height, w
             start_point = PointStamped().point
             start_point.x = x_world
             start_point.y = y_world
-            start_point.z = height
+            start_point.z = z_world
 
             end_point = PointStamped().point
             end_point.x = x_world + dx
             end_point.y = y_world + dy
-            end_point.z = height
+            end_point.z = z_world
 
             marker.points = [start_point, end_point]
 
@@ -214,6 +278,14 @@ def publish_junction_arrows(junction_orientations, resolution, origin, height, w
 
             marker_pub.publish(marker)
             marker_id += 1
+
+
+def publish_final_junctions():
+    for junction in detected_junctions:
+        if junction['counter'] > 10:
+            position = junction['position']
+            orientations = junction['orientations']
+            print(f'Junction detected ad: {position} with {orientations}')
 
 
 def visualize_junctions(grid_map, junction_orientations, skeleton, width, height, square_size):
