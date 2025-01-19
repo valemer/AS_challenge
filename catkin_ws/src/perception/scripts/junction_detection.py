@@ -19,7 +19,6 @@ current_uav_height = 0.0
 #Changed from 15 to 8 because sometimes the data is too unreliable and we need to set it before it dissaperas
 FRAMES_REQUIRED = 8
 recent_junctions_world = []
-MAX_STORED_FRAMES = FRAMES_REQUIRED
 
 # Keep track of stable junctions (position + final orientations)
 # stable_junctions will be a list of dicts, e.g.:
@@ -169,7 +168,7 @@ def confirm_and_store_junctions(junction_info_pixels, resolution, origin, height
 
     # Add current frame's detections to rolling buffer
     recent_junctions_world.append(current_frame_junctions)
-    if len(recent_junctions_world) > MAX_STORED_FRAMES:
+    if len(recent_junctions_world) > FRAMES_REQUIRED:
         recent_junctions_world.pop(0)
 
     # Only proceed if we have FRAMES_REQUIRED frames
