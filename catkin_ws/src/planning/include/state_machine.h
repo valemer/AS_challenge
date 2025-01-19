@@ -8,6 +8,7 @@
 #include <sensor_msgs/PointCloud2.h>
 //#include <pcl/point_cloud.h>
 //#include <pcl/point_types.h>
+#include <visualization_msgs/MarkerArray.h> // For RViz visualization
 
 // Define states for the state machine
 enum State {
@@ -47,6 +48,7 @@ private:
     ros::Publisher pub_max_v_;
     ros::Publisher pub_global_path_;
     ros::Publisher pub_controll_planner;
+    ros::Publisher pub_visited_locations_; // Publisher for visited locations
     ros::Subscriber sub_odom_;
     ros::Subscriber sub_all_lanterns_; // Subscriber for lantern locations
     ros::ServiceClient reset_octomap;
