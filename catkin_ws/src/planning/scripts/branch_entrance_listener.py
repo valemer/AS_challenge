@@ -21,7 +21,10 @@ class BranchEntranceListener:
         self.visited_locations = []
 
         # Min distance to say we visited a branch
-        self.min_distance = 10
+        self.min_distance = 20
+
+
+        self.published_markers = {}
 
         self.list_len = 0
 
@@ -66,6 +69,9 @@ class BranchEntranceListener:
                     marker.color.a = 1.0
                     markers.markers.append(marker)
 
+                    self.published_markers[marker.id] = marker
+
+
             self.marker_pub.publish(markers)
             self.list_len = new_len
 
@@ -92,6 +98,19 @@ class BranchEntranceListener:
         mask = min_distances > self.min_distance
         new_branch_entrances = branch_entrances_np[mask]
         new_branch_sources = np.array(self.branch_sources)[mask]
+
+
+
+        # Delete markers for branch entrances that no longer exist
+        markers_to_delete = MarkerArray()
+        for marker_id in list(self.published_markers.keys()):
+            if marker_id not in new_branch_sources:
+                marker = self.published_markers.pop(marker_id)
+                marker.action = Marker.DELETE
+                markers_to_delete.markers.append(marker)
+
+        if markers_to_delete.markers:
+            self.marker_pub.publish(markers_to_delete)
 
         if set(self.branch_sources_old) > set(new_branch_sources):
             rospy.loginfo(f"Old Set {set(self.branch_sources_old)},New Set {set(new_branch_sources)}")
