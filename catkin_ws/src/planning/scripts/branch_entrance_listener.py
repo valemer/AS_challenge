@@ -1,7 +1,7 @@
 import rospy
 from geometry_msgs.msg import Point
 from visualization_msgs.msg import Marker, MarkerArray
-from fla_msgs.msg import JunctionArray
+from fla_msgs.msg import JunctionArray,GlobalPoint
 import numpy as np
 import math
 
@@ -22,7 +22,7 @@ class BranchEntranceListener:
 
 
         # Min distance to say we visited a branch
-        self.min_distance = 20
+        self.min_distance = 30
         self.postn_of_min_dist_pts = 30
 
         #Save the ids so we can delete from the rviz once passed.
@@ -35,7 +35,7 @@ class BranchEntranceListener:
         rospy.Subscriber('/junctions_array', JunctionArray, self.junctions_callback)
         #rospy.Subscriber('/visited_locations', MarkerArray, self.visited_locations_callback)
         rospy.Subscriber('/current_position',Point,self.current_position_callback)
-        self.emergency_pub = rospy.Publisher('/emergency_superior_waypoint_target', Point, queue_size=10)
+        self.emergency_pub = rospy.Publisher('/emergency_superior_waypoint_target', GlobalPoint, queue_size=10)
         self.marker_pub = rospy.Publisher('/branch_entrances_markers', MarkerArray, queue_size=10)
         self.visited_locations_pub = rospy.Publisher('/visited_locations', MarkerArray, queue_size=10)
         self.timer = rospy.Timer(rospy.Duration(10.0), self.timer_callback)
@@ -81,12 +81,20 @@ class BranchEntranceListener:
             for i in range(diff):
                 junction = new_junctions[-(i+1)]
                 for angle in junction.angles:
-                    entrance_point = Point()
-                    entrance_point.x = junction.position.x + self.postn_of_min_dist_pts* math.cos(angle)
-                    entrance_point.y = junction.position.y + self.postn_of_min_dist_pts* math.sin(angle)
-                    entrance_point.z = junction.position.z
+                    entrance_point = GlobalPoint()
+                    # entrance_point.header=Header(
+                    #         stamp=rospy.Time.now(),
+                    #         frame_id="world"  # I dont know if we need it
+                    #     )
+                    entrance_point.point.x = junction.position.x + self.postn_of_min_dist_pts* math.cos(angle)
+                    entrance_point.point.y = junction.position.y + self.postn_of_min_dist_pts* math.sin(angle)
+                    entrance_point.point.z = junction.position.z
+                    entrance_point.orientation = angle
+                    entrance_point.velocity = -1 #Placeholder value
+                    entrance_point.acceleration = -1#Placeholder value
+
                     self.branch_entrances.append(entrance_point)
-                    rospy.loginfo(f"New branch entrance added: {entrance_point}")
+                    rospy.loginfo(f"New branch entrance added: {entrance_point.point.x,entrance_point.point.y,entrance_point.point.z}")
                     self.branch_sources.append(new_len - i)
                                         # Create a marker for the new branch entrance
                     marker = Marker()
@@ -96,7 +104,9 @@ class BranchEntranceListener:
                     marker.id = len(self.branch_entrances) - 1
                     marker.type = Marker.SPHERE
                     marker.action = Marker.ADD
-                    marker.pose.position = entrance_point
+                    marker.pose.position.x = entrance_point.point.x
+                    marker.pose.position.y = entrance_point.point.y
+                    marker.pose.position.z = entrance_point.point.z
                     marker.scale.x = self.min_distance
                     marker.scale.y = self.min_distance
                     marker.scale.z = self.min_distance
@@ -121,17 +131,22 @@ class BranchEntranceListener:
             return
 
         # Convert branch entrances and visited locations to NumPy arrays
-        branch_entrances_np = np.array([[entrance.x, entrance.y, entrance.z] for entrance in self.branch_entrances])
+        branch_entrances_np = np.array([[entrance.point.x, entrance.point.y, entrance.point.z,entrance.orientation] for entrance in self.branch_entrances])
         visited_locations_np = np.array([[marker.pose.position.x, marker.pose.position.y, marker.pose.position.z] for marker in self.visited_locations.markers])
         #visited_locations_np = np.array([[loc.x, loc.y, loc.z] for loc in self.visited_locations])
 
         # Calculate distances between each branch entrance and each visited location
-        distances = np.linalg.norm(branch_entrances_np[:, np.newaxis, :] - visited_locations_np[np.newaxis, :, :], axis=2)
+        distances = np.linalg.norm(
+        branch_entrances_np[:, np.newaxis, :3] - visited_locations_np[np.newaxis, :, :], axis=2)
 
         # Find the minimum distance for each branch entrance
         min_distances = np.min(distances, axis=1)
-        smallest_distance_yet = np.min(min_distances)
-        rospy.loginfo(f'Smallest distance yet {smallest_distance_yet}')
+
+        #For debuging, currently commented
+        # smallest_distance_yet = np.min(min_distances)
+        # rospy.loginfo(f'Smallest distance yet {smallest_distance_yet}')
+
+        
         # Filter branch entrances and sources based on the minimum distance
         mask = min_distances > self.min_distance
         new_branch_entrances = branch_entrances_np[mask]
@@ -156,12 +171,32 @@ class BranchEntranceListener:
                 rospy.loginfo(f"Used all branches for junction {source}")
             if len(new_branch_entrances) > 0:
                 last_entrance = new_branch_entrances[-1]
-                emergency_point = Point(x=last_entrance[0], y=last_entrance[1], z=last_entrance[2])
-                rospy.loginfo(f"Emergency waypoint {emergency_point}")
+                emergency_point = GlobalPoint()
+                emergency_point.point.x = last_entrance[0]
+                emergency_point.point.y = last_entrance[1]
+                emergency_point.point.z = last_entrance[2]
+
+                # Set orientation
+                emergency_point.orientation = last_entrance[3]
+                rospy.loginfo(f"Emergency waypoint {(emergency_point.point.x,emergency_point.point.y,emergency_point.point.z)} with orientation {emergency_point.orientation}")
                 self.emergency_pub.publish(emergency_point)
 
-        self.branch_entrances = [Point(x=entrance[0], y=entrance[1], z=entrance[2]) for entrance in new_branch_entrances]
-        rospy.loginfo(f'Unvisited branch entrances: {self.branch_entrances}')
+        self.branch_entrances = [
+                    GlobalPoint(
+                        point=Point(
+                            x=ent[0],
+                            y=ent[1],
+                            z=ent[2]
+                        ),
+                        orientation=ent[3],
+                        velocity=-1,       # Dummy
+                        acceleration=-1    # Dummy
+                    )
+                    for ent in new_branch_entrances
+                ]
+        
+
+        #rospy.loginfo(f'Unvisited branch entrances: {self.branch_entrances}')
         self.branch_sources_old = self.branch_sources
         self.branch_sources = new_branch_sources.tolist()
 
