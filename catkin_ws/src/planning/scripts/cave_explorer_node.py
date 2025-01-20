@@ -31,10 +31,14 @@ class CaveExplorerNode:
         self.best_point = None  # Best point reached
         self.running = False
 
+        # Superior goal point variables
+        self.superior_goal_point = None  # To store the superior goal point
+           # Flag to determine if a superior goal is active
         # Subscribers
         rospy.Subscriber("current_state_est", Odometry, self.odom_callback)
         rospy.Subscriber("/octomap_point_cloud_centers", PointCloud2, self.point_cloud_callback)
         rospy.Subscriber("/control_planner", Bool, self.control)
+        rospy.Subscriber("/emergency_superior_waypoint_target", GlobalPoint, self.superior_goal_callback)
 
         # Publishers
         self.path_pub = rospy.Publisher("path_marker_array", MarkerArray, queue_size=1)
@@ -43,6 +47,12 @@ class CaveExplorerNode:
 
         rospy.loginfo("CaveExplorerNode initialized. Waiting for position update...")
         self.explore()
+       # callback to receive a superior goalpoint
+    def superior_goal_callback(self, msg):
+        """Callback to receive a superior goalpoint."""
+        self.superior_goal_point = msg #np.array([msg.x, msg.y, msg.z])
+
+        rospy.loginfo(f"Received superior goalpoint: {self.superior_goal_point}")
 
     def odom_callback(self, msg):
         """Updates current position, orientation, and velocity from odometry."""
@@ -171,7 +181,7 @@ class CaveExplorerNode:
         p.x, p.y, p.z = point
         return p
 
-    def reconstruct_path(self, point_node):
+    def reconstruct_path(self, point_node,orientation = None):
         """Reconstructs the path from the start to the best point iteratively."""
         global_path = GlobalPath()
         global_path.header = Header(stamp=rospy.Time.now(), frame_id="world")
@@ -206,8 +216,11 @@ class CaveExplorerNode:
             global_point.acceleration = -1.0  # Placeholder value
 
             global_path.points.append(global_point)
+        if orientation:
+            global_path.points[-1].orientation = orientation
+        return global_path
 
-        self.global_path_pub.publish(global_path)
+        
 
     def explore(self):
         """Main exploration logic using nested loops."""
@@ -234,8 +247,24 @@ class CaveExplorerNode:
             start_position = self.current_position
             start_orientation = self.current_orientation
 
-            # Define a goal point 2 * max_planning_distance in front of the start
-            goal_point = start_position + 2 * self.max_planning_distance * np.dot(start_orientation, np.array([1.0, 0.0, 0.0]))
+            # define a goal point and cjeck whether a superior point is is existing
+            if self.superior_goal_point:
+                goal_point = self.superior_goal_point
+                distance_to_goal = np.linalg.norm(self.current_position
+                 - np.array([goal_point.point.x, goal_point.point.y, goal_point.point.z]))
+                
+                rospy.loginfo(f"Distance to superior goalpoint: {distance_to_goal:.2f} meters.")
+
+                if distance_to_goal < 0.5:
+                    rospy.loginfo("Superior goalpoint reached. Resuming autonomous exploration.")
+                    self.superior_goal_point = None
+                    continue
+            else:
+                start_orientation = self.current_orientation
+                goal_point = self.current_position + 2 * self.max_planning_distance * np.dot(
+                    start_orientation, np.array([1.0, 0.0, 0.0])
+                )
+                rospy.loginfo("Autonomous goalpoint assigned.")
 
             point_nodes = [{'position': start_position, 'father': None, 'radius': 0.0}]
             best_node = point_nodes[0]
@@ -276,7 +305,8 @@ class CaveExplorerNode:
 
             # Reconstruct and publish the path
             rospy.logdebug("Maximum planning distance reached. Reconstructing and publishing path.")
-            self.reconstruct_path(best_node)
+            global_path = self.reconstruct_path(best_node,self.superior_goal_point.orientation) if self.superior_goal_point else self.reconstruct_path(best_node)
+            self.global_path_pub.publish(global_path)
             self.path_pub.publish(self.path_markers)
             self.path_markers = MarkerArray()
             self.cloud = []

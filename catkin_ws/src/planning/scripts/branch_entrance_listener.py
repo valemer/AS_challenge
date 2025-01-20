@@ -35,7 +35,7 @@ class BranchEntranceListener:
         rospy.Subscriber('/junctions_array', JunctionArray, self.junctions_callback)
         #rospy.Subscriber('/visited_locations', MarkerArray, self.visited_locations_callback)
         rospy.Subscriber('/current_position',Point,self.current_position_callback)
-        self.emergency_pub = rospy.Publisher('/emergency_superior_waypoint_target', GlobalPoint, queue_size=10)
+        self.target_branch_entrance_pub = rospy.Publisher('/branch_entrance_superior_waypoint_target', GlobalPoint, queue_size=10)
         self.marker_pub = rospy.Publisher('/branch_entrances_markers', MarkerArray, queue_size=10)
         self.visited_locations_pub = rospy.Publisher('/visited_locations', MarkerArray, queue_size=10)
         self.timer = rospy.Timer(rospy.Duration(10.0), self.timer_callback)
@@ -44,7 +44,7 @@ class BranchEntranceListener:
         current_position = np.array([msg.x, msg.y, msg.z])
         if not self.visited_locations.markers or np.linalg.norm(current_position - np.array([self.visited_locations.markers[-1].pose.position.x, self.visited_locations.markers[-1].pose.position.y, self.visited_locations.markers[-1].pose.position.z])) > 5.0:
             #self.visited_locations.append(msg)
-            rospy.loginfo(f"Added a visited point at{(msg.x,msg.y,msg.z)}")
+            #rospy.loginfo(f"Added a visited point at{(msg.x,msg.y,msg.z)}")
 
 
             # Create a marker for the new visited point
@@ -127,7 +127,7 @@ class BranchEntranceListener:
 
     def timer_callback(self, event):
         if not self.visited_locations or not self.branch_entrances:
-            rospy.logwarn("No visited locations or branch entrances received yet.")
+            #rospy.logwarn("No visited locations or branch entrances received yet.")
             return
 
         # Convert branch entrances and visited locations to NumPy arrays
@@ -171,15 +171,15 @@ class BranchEntranceListener:
                 rospy.loginfo(f"Used all branches for junction {source}")
             if len(new_branch_entrances) > 0:
                 last_entrance = new_branch_entrances[-1]
-                emergency_point = GlobalPoint()
-                emergency_point.point.x = last_entrance[0]
-                emergency_point.point.y = last_entrance[1]
-                emergency_point.point.z = last_entrance[2]
+                target_branch_entrance_point = GlobalPoint()
+                target_branch_entrance_point.point.x = last_entrance[0]
+                target_branch_entrance_point.point.y = last_entrance[1]
+                target_branch_entrance_point.point.z = last_entrance[2]
 
                 # Set orientation
-                emergency_point.orientation = last_entrance[3]
-                rospy.loginfo(f"Emergency waypoint {(emergency_point.point.x,emergency_point.point.y,emergency_point.point.z)} with orientation {emergency_point.orientation}")
-                self.emergency_pub.publish(emergency_point)
+                target_branch_entrance_point.orientation = last_entrance[3]
+                rospy.loginfo(f"Target branch entrance waypoint {(target_branch_entrance_point.point.x,target_branch_entrance_point.point.y,target_branch_entrance_point.point.z)} with orientation {target_branch_entrance_point.orientation}")
+                self.target_branch_entrance_pub.publish(target_branch_entrance_point)
 
         self.branch_entrances = [
                     GlobalPoint(
