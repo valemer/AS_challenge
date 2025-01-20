@@ -72,6 +72,7 @@ class BranchEntranceListener:
         new_branch_sources = np.array(self.branch_sources)[mask]
 
         if set(self.branch_sources_old) != set(new_branch_sources):
+            rospy.loginfo(f"Old Set {set(self.branch_sources_old)},New Set {set(new_branch_sources)}")
             for source in set(self.branch_sources_old) - set(new_branch_sources):
                 rospy.loginfo(f"Used all branches for junction {source}")
             if len(new_branch_entrances) > 0:
