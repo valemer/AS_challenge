@@ -23,6 +23,7 @@ class BranchEntranceListener:
 
         # Min distance to say we visited a branch
         self.min_distance = 20
+        self.postn_of_min_dist_pts = 30
 
         #Save the ids so we can delete from the rviz once passed.
         self.published_markers = {}
@@ -81,8 +82,8 @@ class BranchEntranceListener:
                 junction = new_junctions[-(i+1)]
                 for angle in junction.angles:
                     entrance_point = Point()
-                    entrance_point.x = junction.position.x + self.min_distance* math.cos(angle)
-                    entrance_point.y = junction.position.y + self.min_distance* math.sin(angle)
+                    entrance_point.x = junction.position.x + self.postn_of_min_dist_pts* math.cos(angle)
+                    entrance_point.y = junction.position.y + self.postn_of_min_dist_pts* math.sin(angle)
                     entrance_point.z = junction.position.z
                     self.branch_entrances.append(entrance_point)
                     rospy.loginfo(f"New branch entrance added: {entrance_point}")
