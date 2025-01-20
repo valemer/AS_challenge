@@ -18,7 +18,8 @@ class BranchEntranceListener:
         self.branch_sources_old = []
 
         # Path we have moved along
-        self.visited_locations = []
+        self.visited_locations = MarkerArray()
+
 
         # Min distance to say we visited a branch
         self.min_distance = 20
@@ -28,13 +29,48 @@ class BranchEntranceListener:
 
         self.list_len = 0
 
+
         rospy.init_node('branch_entrance_listener', anonymous=True)
         rospy.Subscriber('/junctions_array', JunctionArray, self.junctions_callback)
-        rospy.Subscriber('/visited_locations', MarkerArray, self.visited_locations_callback)
+        #rospy.Subscriber('/visited_locations', MarkerArray, self.visited_locations_callback)
+        rospy.Subscriber('/current_position',Point,self.current_position_callback)
         self.emergency_pub = rospy.Publisher('/emergency_superior_waypoint_target', Point, queue_size=10)
         self.marker_pub = rospy.Publisher('/branch_entrances_markers', MarkerArray, queue_size=10)
+        self.visited_locations_pub = rospy.Publisher('/visited_locations', MarkerArray, queue_size=10)
         self.timer = rospy.Timer(rospy.Duration(10.0), self.timer_callback)
 
+    def current_position_callback(self, msg):
+        current_position = np.array([msg.x, msg.y, msg.z])
+        if not self.visited_locations.markers or np.linalg.norm(current_position - np.array([self.visited_locations.markers[-1].pose.position.x, self.visited_locations.markers[-1].pose.position.y, self.visited_locations.markers[-1].pose.position.z])) > 5.0:
+            #self.visited_locations.append(msg)
+            rospy.loginfo(f"Added a visited point at{(msg.x,msg.y,msg.z)}")
+
+
+            # Create a marker for the new visited point
+            marker = Marker()
+            marker.header.frame_id = "world"
+            marker.header.stamp = rospy.Time.now()
+            marker.ns = "visited_locations"
+            marker.id = len(self.visited_locations.markers) - 1
+            marker.type = Marker.SPHERE
+            marker.action = Marker.ADD
+            marker.pose.position = msg
+            marker.scale.x = 0.3
+            marker.scale.y = 0.3
+            marker.scale.z = 0.3
+            marker.color.r = 0.0
+            marker.color.g = 1.0
+            marker.color.b = 0.0
+            marker.color.a = 1.0
+
+            # Publish the updated visited locations
+            
+            self.visited_locations.markers.append(marker)
+            self.visited_locations_pub.publish(self.visited_locations)
+
+    
+    
+    
     def junctions_callback(self, msg):
         new_junctions = msg.junctions
         new_len = len(new_junctions)
@@ -45,8 +81,8 @@ class BranchEntranceListener:
                 junction = new_junctions[-(i+1)]
                 for angle in junction.angles:
                     entrance_point = Point()
-                    entrance_point.x = junction.position.x + 10.0 * math.cos(angle)
-                    entrance_point.y = junction.position.y + 10.0 * math.sin(angle)
+                    entrance_point.x = junction.position.x + self.min_distance* math.cos(angle)
+                    entrance_point.y = junction.position.y + self.min_distance* math.sin(angle)
                     entrance_point.z = junction.position.z
                     self.branch_entrances.append(entrance_point)
                     rospy.loginfo(f"New branch entrance added: {entrance_point}")
@@ -85,7 +121,8 @@ class BranchEntranceListener:
 
         # Convert branch entrances and visited locations to NumPy arrays
         branch_entrances_np = np.array([[entrance.x, entrance.y, entrance.z] for entrance in self.branch_entrances])
-        visited_locations_np = np.array([[loc.x, loc.y, loc.z] for loc in self.visited_locations])
+        visited_locations_np = np.array([[marker.pose.position.x, marker.pose.position.y, marker.pose.position.z] for marker in self.visited_locations.markers])
+        #visited_locations_np = np.array([[loc.x, loc.y, loc.z] for loc in self.visited_locations])
 
         # Calculate distances between each branch entrance and each visited location
         distances = np.linalg.norm(branch_entrances_np[:, np.newaxis, :] - visited_locations_np[np.newaxis, :, :], axis=2)
