@@ -40,6 +40,7 @@ cs_export()
 catkin_install_python(PROGRAMS
   scripts/manual_control.py
   scripts/cave_explorer_node.py
+  scripts/cave_explorer_node_old.py
   scripts/branch_entrance_listener.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
