@@ -3,7 +3,8 @@
     <node pkg="octomap_server" type="octomap_server_node" name="octomap_server" output="screen">
         <param name="frame_id" value="world" /> <!-- Fixed frame for the map -->
         <param name="resolution" value="2.0" /> <!-- Voxel resolution in meters -->
-        <param name="sensor_model_hit" value="0.9" /> <!-- hit accuracy -->
+        <param name="sensor_model_hit" value="0.3" /> <!-- hit accuracy -->
+        <param name="sensor_model_miss" value="0.15" /> <!-- hit accuracy -->
         <remap from="cloud_in" to="/camera/depth/points" /> <!-- Input point cloud topic -->
     </node>
 </launch>
