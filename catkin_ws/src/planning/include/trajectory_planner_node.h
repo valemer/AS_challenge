@@ -10,6 +10,7 @@
 #include <mav_trajectory_generation_ros/ros_visualization.h>
 #include <mav_trajectory_generation_ros/ros_conversions.h>
 #include <std_msgs/Float32.h>
+#include <math.h>
 
 class TrajectoryPlanner {
 public:
