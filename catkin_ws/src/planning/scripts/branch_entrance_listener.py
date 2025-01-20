@@ -1,6 +1,6 @@
 import rospy
 from geometry_msgs.msg import Point
-from visualization_msgs.msg import MarkerArray
+from visualization_msgs.msg import Marker, MarkerArray
 from fla_msgs.msg import JunctionArray
 import numpy as np
 import math
@@ -29,6 +29,7 @@ class BranchEntranceListener:
         rospy.Subscriber('/junctions_array', JunctionArray, self.junctions_callback)
         rospy.Subscriber('/visited_locations', MarkerArray, self.visited_locations_callback)
         self.emergency_pub = rospy.Publisher('/emergency_superior_waypoint_target', Point, queue_size=10)
+        self.marker_pub = rospy.Publisher('/branch_entrances_markers', MarkerArray, queue_size=10)
         self.timer = rospy.Timer(rospy.Duration(10.0), self.timer_callback)
 
     def junctions_callback(self, msg):
@@ -36,6 +37,7 @@ class BranchEntranceListener:
         new_len = len(new_junctions)
         if new_len != self.list_len:
             diff = new_len - self.list_len
+            markers = MarkerArray()
             for i in range(diff):
                 junction = new_junctions[-(i+1)]
                 for angle in junction.angles:
@@ -46,6 +48,25 @@ class BranchEntranceListener:
                     self.branch_entrances.append(entrance_point)
                     rospy.loginfo(f"New branch entrance added: {entrance_point}")
                     self.branch_sources.append(new_len - i)
+                                        # Create a marker for the new branch entrance
+                    marker = Marker()
+                    marker.header.frame_id = "world"
+                    marker.header.stamp = rospy.Time.now()
+                    marker.ns = "branch_entrances"
+                    marker.id = len(self.branch_entrances) - 1
+                    marker.type = Marker.SPHERE
+                    marker.action = Marker.ADD
+                    marker.pose.position = entrance_point
+                    marker.scale.x = self.min_distance
+                    marker.scale.y = self.min_distance
+                    marker.scale.z = self.min_distance
+                    marker.color.r = 0.0
+                    marker.color.g = 0.0
+                    marker.color.b = 1.0
+                    marker.color.a = 1.0
+                    markers.markers.append(marker)
+
+            self.marker_pub.publish(markers)
             self.list_len = new_len
 
     def visited_locations_callback(self, msg):
@@ -65,13 +86,14 @@ class BranchEntranceListener:
 
         # Find the minimum distance for each branch entrance
         min_distances = np.min(distances, axis=1)
-
+        smallest_distance_yet = np.min(min_distances)
+        rospy.loginfo(f'Smallest distance yet {smallest_distance_yet}')
         # Filter branch entrances and sources based on the minimum distance
         mask = min_distances > self.min_distance
         new_branch_entrances = branch_entrances_np[mask]
         new_branch_sources = np.array(self.branch_sources)[mask]
 
-        if set(self.branch_sources_old) != set(new_branch_sources):
+        if set(self.branch_sources_old) > set(new_branch_sources):
             rospy.loginfo(f"Old Set {set(self.branch_sources_old)},New Set {set(new_branch_sources)}")
             for source in set(self.branch_sources_old) - set(new_branch_sources):
                 rospy.loginfo(f"Used all branches for junction {source}")
@@ -82,6 +104,7 @@ class BranchEntranceListener:
                 self.emergency_pub.publish(emergency_point)
 
         self.branch_entrances = [Point(x=entrance[0], y=entrance[1], z=entrance[2]) for entrance in new_branch_entrances]
+        rospy.loginfo(f'Unvisited branch entrances: {self.branch_entrances}')
         self.branch_sources_old = self.branch_sources
         self.branch_sources = new_branch_sources.tolist()
 
