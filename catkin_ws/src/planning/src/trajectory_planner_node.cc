@@ -86,9 +86,9 @@ void TrajectoryPlanner::planTrajectory(const fla_msgs::GlobalPath::ConstPtr& glo
         //  minimize angle difference to avoid 360m degree spin
         double diff = start_pos_4d(3) - points[i].orientation;
         if (diff > M_PI) {
-            points[i].orientation = start_pos_4d(3) + 2 * M_PI - diff;
+            points[i].orientation = points[i].orientation + 2 * M_PI;
         } else if (diff < -M_PI) {
-            points[i].orientation = start_pos_4d(3) - 2 * M_PI - diff;
+            points[i].orientation = points[i].orientation - 2 * M_PI;
         }
 
         pos << points[i].point.x, points[i].point.y, points[i].point.z, points[i].orientation;
