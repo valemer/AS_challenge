@@ -24,7 +24,7 @@ class BranchEntranceListener:
         # Min distance to say we visited a branch
         self.min_distance = 20
 
-
+        #Save the ids so we can delete from the rviz once passed.
         self.published_markers = {}
 
         self.list_len = 0
