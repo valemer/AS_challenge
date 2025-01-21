@@ -1,3 +1,6 @@
+from copy import copy
+from enum import Enum
+
 import rospy
 import tf.transformations
 from geometry_msgs.msg import Point
@@ -7,16 +10,22 @@ from nav_msgs.msg import Odometry
 import numpy as np
 import math
 
+class State(Enum):
+    OBSERVING = 1,
+    CHANGING_PLACE = 2
+
 class ExplorationManager:
     def __init__(self):
         self.entrances = []
 
         self.visited_locations = []
+        self.goal = None
 
 
         # Min distance to say we visited a branch
         self.min_distance = 30
         self.min_distance_visited = 10.0
+        self.skip_for_loop_detection = 5
 
         rospy.init_node('exploration_manager', anonymous=True)
 
@@ -25,6 +34,8 @@ class ExplorationManager:
         self.target_branch_entrance_pub = rospy.Publisher('/goal_point', GlobalPoint, queue_size=10)
         self.marker_pub = rospy.Publisher('/branch_entrances_markers', MarkerArray, queue_size=10)
         self.timer = rospy.Timer(rospy.Duration(1), self.timer_callback)
+
+        self.state = State.OBSERVING
 
     def current_position_callback(self, msg):
         current_position = [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z]
@@ -73,6 +84,18 @@ class ExplorationManager:
                 if all(np.linalg.norm(entrance[:3] - new_entrance[:3]) > 5.0 for entrance in self.entrances):
                     self.entrances.append(new_entrance)
 
+    def fly_to_not_explored_entrance(self):
+        last_unvisited_entrance = None
+        for entrance in self.entrances:
+            if not entrance[4]:
+                last_unvisited_entrance = entrance
+        gp = GlobalPoint()
+        gp.point.x = last_unvisited_entrance[0]
+        gp.point.y = last_unvisited_entrance[1]
+        gp.point.z = last_unvisited_entrance[2]
+        gp.orientation.x = last_unvisited_entrance[3]
+
+        self.target_branch_entrance_pub.publish(gp)
 
     def timer_callback(self, event):
         if not self.entrances:
@@ -84,6 +107,15 @@ class ExplorationManager:
                 entrance[4] = True
 
         self.pub_marker()
+
+        if self.state == State.OBSERVING and len(self.visited_locations) > self.skip_for_loop_detection:
+            if any(np.linalg.norm(old_location - self.visited_locations) < self.min_distance_visited for old_location in self.visited_locations[:-self.skip_for_loop_detection]):
+                self.fly_to_not_explored_entrance()
+                self.state = State.CHANGING_PLACE
+
+        if self.state == State.CHANGING_PLACE and np.linalg.norm(self.visited_locations[-1] - self.goal) < self.min_distance_visited:
+            self.state = State.OBSERVING
+
 
 if __name__ == '__main__':
     try:
