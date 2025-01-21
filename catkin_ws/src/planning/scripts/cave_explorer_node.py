@@ -27,7 +27,7 @@ class CaveExplorerNode:
         self.cloud = []
         self.path_markers = MarkerArray()
         self.best_point = None
-        self.running = True
+        self.running = False
 
         self.goal_point = None
 
