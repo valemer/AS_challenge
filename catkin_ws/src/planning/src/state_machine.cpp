@@ -50,11 +50,11 @@ StateMachine::StateMachine() :
 // Callback to get current Pose of UAV
 void StateMachine::uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom) {
 
-    geometry_msgs::Point point_msg;
-    point_msg.x = odom->pose.pose.position.x;
-    point_msg.y = odom->pose.pose.position.y;
-    point_msg.z = odom->pose.pose.position.z;
-    pub_current_position_.publish(point_msg);
+    // geometry_msgs::Point point_msg;
+    // point_msg.x = odom->pose.pose.position.x;
+    // point_msg.y = odom->pose.pose.position.y;
+    // point_msg.z = odom->pose.pose.position.z;
+    // pub_current_position_.publish(point_msg);
 
     // store current position in our planner
     tf::poseMsgToEigen(odom->pose.pose, current_pose_);
@@ -90,7 +90,7 @@ void StateMachine::mainLoop(const ros::TimerEvent& t) {
     }
 
     // Trigger FLY_BACK state when 4 or more lanterns are detected
-    if (detected_lantern_count_ >= 4 && state_ != FLY_BACK) {
+    if (detected_lantern_count_ >= 5 && state_ != FLY_BACK) {
         state_ = FLY_BACK;
         ROS_INFO("Triggering FLY_BACK state: 4 or more lanterns detected.");
     }
