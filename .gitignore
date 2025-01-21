@@ -2,3 +2,5 @@
 *build
 *logs
 *cmake-build-debug
+*.vscode
+*.catkin_tools

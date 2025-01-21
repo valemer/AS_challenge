@@ -80,6 +80,7 @@ class CaveExplorerNode:
         self.cloud = np.array(self.filtered_cloud)
 
     def control(self, msg):
+        rospy.loginfo("Received control message: %s", msg)
         self.running = msg
 
     def sample_sphere_directed(self, center, direction, radius, max_angle_deg, step_deg):
@@ -223,8 +224,10 @@ class CaveExplorerNode:
                 continue
 
             if not self.running:
+                rospy.loginfo("Stopping cave exploration.")
                 continue
 
+            rospy.loginfo("Starting cave exploration.")
 
             if best_node is not None:
                 dis = np.linalg.norm(self.current_position - best_node['father']['position'])
