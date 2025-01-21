@@ -48,7 +48,7 @@ class ExplorationManager:
 
     def create_branch_entrance_marker(self):
         markers = MarkerArray()
-        for entrance_point in self.branch_entrances:                 
+        for entrance_point in self.branch_entrances:
             marker = Marker()
             marker.header.frame_id = "world"
             marker.header.stamp = rospy.Time.now()
@@ -118,7 +118,7 @@ class ExplorationManager:
         new_branch_entrances = branch_entrances_np[mask]
         new_branch_sources = np.array(self.branch_sources)[mask]
 
-        
+
 
         if set(self.branch_sources_old) > set(new_branch_sources):
             rospy.loginfo(f"Old Set {set(self.branch_sources_old)},New Set {set(new_branch_sources)}")
