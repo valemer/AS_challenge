@@ -1,7 +1,7 @@
 # sets maximal velocity and acceleration values along the trajectory
 dynamic_params: {
-  max_v: 20.0,
-  max_a: 1.0
+  max_v: 30.0,
+  max_a: 2.0
 }
 
 

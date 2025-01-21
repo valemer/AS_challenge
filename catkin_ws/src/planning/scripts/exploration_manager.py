@@ -25,7 +25,7 @@ class ExplorationManager:
         # Min distance to say we visited a branch
         self.min_distance = 30
         self.min_distance_visited = 10.0
-        self.skip_for_loop_detection = 5
+        self.skip_for_loop_detection = 10
 
         rospy.init_node('exploration_manager', anonymous=True)
 
@@ -98,6 +98,8 @@ class ExplorationManager:
         self.target_branch_entrance_pub.publish(gp)
 
         rospy.loginfo(f"Sended GP: {gp.point.x, gp.point.y, gp.point.z}")
+
+        self.goal = last_unvisited_entrance[:3]
 
     def timer_callback(self, event):
         if not self.entrances:
