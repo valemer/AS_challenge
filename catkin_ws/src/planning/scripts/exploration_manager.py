@@ -38,7 +38,7 @@ class ExplorationManager:
         self.state = State.OBSERVING
 
     def current_position_callback(self, msg):
-        current_position = [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z]
+        current_position = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z])
         if not self.visited_locations or np.linalg.norm(current_position - np.array(self.visited_locations[-1])) > 5.0:
             self.visited_locations.append(current_position)
 
@@ -109,7 +109,7 @@ class ExplorationManager:
         self.pub_marker()
 
         if self.state == State.OBSERVING and len(self.visited_locations) > self.skip_for_loop_detection:
-            if any(np.linalg.norm(old_location - self.visited_locations) < self.min_distance_visited for old_location in self.visited_locations[:-self.skip_for_loop_detection]):
+            if any(np.linalg.norm(old_location - self.visited_locations[-1]) < self.min_distance_visited for old_location in self.visited_locations[:-self.skip_for_loop_detection]):
                 self.fly_to_not_explored_entrance()
                 self.state = State.CHANGING_PLACE
 
