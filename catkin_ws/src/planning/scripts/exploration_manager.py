@@ -36,41 +36,15 @@ class ExplorationManager:
 
         rospy.init_node('exploration_manager', anonymous=True)
         rospy.Subscriber('/junctions_array', JunctionArray, self.junctions_callback)
-        #rospy.Subscriber('/visited_locations', MarkerArray, self.visited_locations_callback)
         rospy.Subscriber('/current_state_est',Odometry,self.current_position_callback)
         self.target_branch_entrance_pub = rospy.Publisher('/branch_entrance_superior_waypoint_target', GlobalPoint, queue_size=10)
         self.marker_pub = rospy.Publisher('/branch_entrances_markers', MarkerArray, queue_size=10)
-        #self.visited_locations_pub = rospy.Publisher('/visited_locations', MarkerArray, queue_size=10)
         self.timer = rospy.Timer(rospy.Duration(10.0), self.timer_callback)
 
     def current_position_callback(self, msg):
         current_position = [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z]
         if not self.visited_locations or np.linalg.norm(current_position - np.array(self.visited_locations[-1])) > 5.0:
-            #self.visited_locations.append(msg)
-            #rospy.loginfo(f"Added a visited point at{(msg.x,msg.y,msg.z)}")
             self.visited_locations.append(current_position)
-
-            # # Create a marker for the new visited point
-            # marker = Marker()
-            # marker.header.frame_id = "world"
-            # marker.header.stamp = rospy.Time.now()
-            # marker.ns = "visited_locations"
-            # marker.id = len(self.visited_locations.markers) - 1
-            # marker.type = Marker.SPHERE
-            # marker.action = Marker.ADD
-            # marker.pose.position = msg
-            # marker.scale.x = 0.3
-            # marker.scale.y = 0.3
-            # marker.scale.z = 0.3
-            # marker.color.r = 0.0
-            # marker.color.g = 1.0
-            # marker.color.b = 0.0
-            # marker.color.a = 1.0
-
-            # # Publish the updated visited locations
-            
-            # self.visited_locations.markers.append(marker)
-            # self.visited_locations_pub.publish(self.visited_locations)
 
     def create_branch_entrance_marker(self):
         markers = MarkerArray()  
@@ -121,33 +95,10 @@ class ExplorationManager:
                     rospy.loginfo(f"New branch entrance added: {entrance_point.point.x,entrance_point.point.y,entrance_point.point.z}")
                     self.branch_sources.append(new_len - i)
                                         # Create a marker for the new branch entrance
-                    # marker = Marker()
-                    # marker.header.frame_id = "world"
-                    # marker.header.stamp = rospy.Time.now()
-                    # marker.ns = "branch_entrances"
-                    # marker.id = len(self.branch_entrances) - 1
-                    # marker.type = Marker.SPHERE
-                    # marker.action = Marker.ADD
-                    # marker.pose.position.x = entrance_point.point.x
-                    # marker.pose.position.y = entrance_point.point.y
-                    # marker.pose.position.z = entrance_point.point.z
-                    # marker.scale.x = self.min_distance
-                    # marker.scale.y = self.min_distance
-                    # marker.scale.z = self.min_distance
-                    # marker.color.r = 0.0
-                    # marker.color.g = 0.0
-                    # marker.color.b = 1.0
-                    # marker.color.a = 1.0
-                    # markers.markers.append(marker)
 
-                    #self.published_markers[marker.id] = marker
-
-            self.create_branch_entrance_marker()
-            #self.marker_pub.publish(markers)
             self.list_len = new_len
+        self.create_branch_entrance_marker()
 
-    # def visited_locations_callback(self, msg):
-    #     self.visited_locations = [marker.pose.position for marker in msg.markers]
 
     def timer_callback(self, event):
         if not self.visited_locations or not self.branch_entrances:
@@ -165,9 +116,7 @@ class ExplorationManager:
         # Find the minimum distance for each branch entrance
         min_distances = np.min(distances, axis=1)
 
-        #For debuging, currently commented
-        # smallest_distance_yet = np.min(min_distances)
-        # rospy.loginfo(f'Smallest distance yet {smallest_distance_yet}')
+
 
         
         # Filter branch entrances and sources based on the minimum distance
@@ -175,11 +124,7 @@ class ExplorationManager:
         new_branch_entrances = branch_entrances_np[mask]
         new_branch_sources = np.array(self.branch_sources)[mask]
 
-
-
-        # Delete markers for branch entrances that no longer exist
         
-
 
         if set(self.branch_sources_old) > set(new_branch_sources):
             rospy.loginfo(f"Old Set {set(self.branch_sources_old)},New Set {set(new_branch_sources)}")

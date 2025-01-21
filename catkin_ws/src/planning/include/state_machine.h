@@ -48,8 +48,6 @@ private:
     ros::Publisher pub_max_v_;
     ros::Publisher pub_global_path_;
     ros::Publisher pub_controll_planner;
-    //ros::Publisher pub_visited_locations_; // Publisher for visited locations
-    //ros::Publisher pub_current_position_;
     ros::Subscriber sub_odom_;
     ros::Subscriber sub_all_lanterns_; // Subscriber for lantern locations
     ros::ServiceClient reset_octomap;
