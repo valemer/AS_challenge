@@ -257,7 +257,6 @@ class CaveExplorerNode:
             if self.goal_point is not None:
                 goal_point = np.array(
                     [self.goal_point.point.x, self.goal_point.point.y, self.goal_point.point.z])
-                total_dis_to_goal = np.linalg.norm(goal_point - self.current_position)
             else:
                 goal_point = start_position + base_dis_goal * np.dot(start_orientation,
                                                                      np.array([1.0, 0.0, 0.0]))
@@ -280,6 +279,7 @@ class CaveExplorerNode:
                                                  self.goal_point.point.z]),
                                         'father': goal_point,
                                         'radius': 10.0})
+                    self.goal_point = None
                     break
 
                 # Use the last node for exploration
