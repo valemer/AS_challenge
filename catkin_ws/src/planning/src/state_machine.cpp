@@ -25,7 +25,6 @@ StateMachine::StateMachine() :
     pub_max_v_ = nh_.advertise<std_msgs::Float32>("/max_speed", 1);
     pub_global_path_ = nh_.advertise<fla_msgs::GlobalPath>("/global_path", 0);
     pub_controll_planner = nh_.advertise<std_msgs::Bool>("/control_planner", 0);
-    pub_current_position_ = nh_.advertise<geometry_msgs::Point>("/current_position", 1);
 
 
     // subscriber

@@ -287,7 +287,9 @@ class CaveExplorerNode:
                 forward_direction = np.dot(start_orientation, np.array([1.0, 0.0, 0.0])) if current_node['father'] is None else (current_node['position'] - current_node['father']['position']) / np.linalg.norm(current_node['position'] - current_node['father']['position'])
 
                 # Sample points
-                sampled_points = self.sample_sphere_directed(current_node['position'], forward_direction, current_node['radius'], self.max_sampling_angle_deg, self.sampling_angle_deg)
+                sampled_points = self.sample_sphere_directed(current_node['position'], forward_direction, current_node['radius'],
+                                                             self.max_sampling_angle_deg if self.goal_point is None else self.max_sampling_angle_deg + 100,
+                                                             self.sampling_angle_deg)
 
                 #self.pub_sphere(current_node['position'], current_node['radius'])
 
@@ -297,8 +299,6 @@ class CaveExplorerNode:
                     if max_radius < self.min_radius:
                         continue
                     distance_to_goal = np.linalg.norm(sampled_point - goal_point)
-                    if self.goal_point is not None:
-                        distance_to_goal *= (base_dis_goal / total_dis_to_goal)
                     distance_from_start = np.linalg.norm(sampled_point - start_position)
                     value = 3 * distance_from_start - 5 * distance_to_goal + 15 * max_radius
                     if value > best_value:
