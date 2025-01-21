@@ -25,7 +25,6 @@ StateMachine::StateMachine() :
     pub_max_v_ = nh_.advertise<std_msgs::Float32>("/max_speed", 1);
     pub_global_path_ = nh_.advertise<fla_msgs::GlobalPath>("/global_path", 0);
     pub_controll_planner = nh_.advertise<std_msgs::Bool>("/control_planner", 0);
-    pub_visited_locations_ = nh_.advertise<visualization_msgs::MarkerArray>("/visited_locations", 1);
 
 
     // subscriber
@@ -83,7 +82,7 @@ void StateMachine::mainLoop(const ros::TimerEvent& t) {
     }
 
     // Trigger FLY_BACK state when 4 or more lanterns are detected
-    if (detected_lantern_count_ >= 4 && state_ != FLY_BACK) {
+    if (detected_lantern_count_ >= 5 && state_ != FLY_BACK) {
         state_ = FLY_BACK;
         ROS_INFO("Triggering FLY_BACK state: 4 or more lanterns detected.");
     }
@@ -193,38 +192,38 @@ void StateMachine::loadAndSendPath(const std::string& path) {
 }
 
 void StateMachine::explore() {
-    static std::vector<Eigen::Vector3d> visited_locations;
-    static visualization_msgs::MarkerArray markers;
+    // static std::vector<Eigen::Vector3d> visited_locations;
+    // static visualization_msgs::MarkerArray markers;
 
-    // Add current location to visited locations if far enough from the last point
-    if (visited_locations.empty() || (current_pose_.translation() - visited_locations.back()).norm() > 5.0) {
-        visited_locations.push_back(current_pose_.translation());
-        ROS_INFO("ADDED A VISITEED POINT");
+    // // Add current location to visited locations if far enough from the last point
+    // if (visited_locations.empty() || (current_pose_.translation() - visited_locations.back()).norm() > 5.0) {
+    //     visited_locations.push_back(current_pose_.translation());
+    //     ROS_INFO("ADDED A VISITED POINT");
 
-        // Create a marker for the new visited point
-        visualization_msgs::Marker marker;
-        marker.header.frame_id = "world";
-        marker.header.stamp = ros::Time::now();
-        marker.ns = "visited_locations";
-        marker.id = visited_locations.size() - 1;
-        marker.type = visualization_msgs::Marker::SPHERE;
-        marker.action = visualization_msgs::Marker::ADD;
-        marker.pose.position.x = current_pose_.translation()[0];
-        marker.pose.position.y = current_pose_.translation()[1];
-        marker.pose.position.z = current_pose_.translation()[2];
-        marker.scale.x = 0.3;
-        marker.scale.y = 0.3;
-        marker.scale.z = 0.3;
-        marker.color.r = 0.0;
-        marker.color.g = 1.0;
-        marker.color.b = 0.0;
-        marker.color.a = 1.0;
+    //     // Create a marker for the new visited point
+    //     visualization_msgs::Marker marker;
+    //     marker.header.frame_id = "world";
+    //     marker.header.stamp = ros::Time::now();
+    //     marker.ns = "visited_locations";
+    //     marker.id = visited_locations.size() - 1;
+    //     marker.type = visualization_msgs::Marker::SPHERE;
+    //     marker.action = visualization_msgs::Marker::ADD;
+    //     marker.pose.position.x = current_pose_.translation()[0];
+    //     marker.pose.position.y = current_pose_.translation()[1];
+    //     marker.pose.position.z = current_pose_.translation()[2];
+    //     marker.scale.x = 0.3;
+    //     marker.scale.y = 0.3;
+    //     marker.scale.z = 0.3;
+    //     marker.color.r = 0.0;
+    //     marker.color.g = 1.0;
+    //     marker.color.b = 0.0;
+    //     marker.color.a = 1.0;
 
-        markers.markers.push_back(marker);
-    }
+    //     markers.markers.push_back(marker);
+    // }
 
-    // Publish the markers to RViz
-    pub_visited_locations_.publish(markers);
+    // // Publish the markers to RViz
+    // pub_visited_locations_.publish(markers);
 
 
     if (!paths_sent_) {
