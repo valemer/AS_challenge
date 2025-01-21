@@ -25,20 +25,17 @@ class CaveExplorerNode:
         self.current_velocity = np.array([0.0, 0.0, 0.0])
         self.current_orientation = np.eye(3)
         self.cloud = []
-        self.path_markers = MarkerArray()  # Stores the path as a marker array
-        self.marker_id = 0  # Unique ID for each marker
-        self.totsal_distance = 0.0  # Total planned distance
-        self.best_point = None  # Best point reached
-        self.running = False
+        self.path_markers = MarkerArray()
+        self.best_point = None
+        self.running = True
 
-        # Superior goal point variables
-        self.superior_goal_point = None  # To store the superior goal point
-           # Flag to determine if a superior goal is active
+        self.goal_point = None
+
         # Subscribers
         rospy.Subscriber("current_state_est", Odometry, self.odom_callback)
         rospy.Subscriber("/octomap_point_cloud_centers", PointCloud2, self.point_cloud_callback)
         rospy.Subscriber("/control_planner", Bool, self.control)
-        rospy.Subscriber("/emergency_superior_waypoint_target", GlobalPoint, self.superior_goal_callback)
+        rospy.Subscriber("/goal_point", GlobalPoint, self.goal_point_callback)
 
         # Publishers
         self.path_pub = rospy.Publisher("path_marker_array", MarkerArray, queue_size=1)
@@ -48,11 +45,15 @@ class CaveExplorerNode:
         rospy.loginfo("CaveExplorerNode initialized. Waiting for position update...")
         self.explore()
        # callback to receive a superior goalpoint
-    def superior_goal_callback(self, msg):
+    def goal_point_callback(self, msg: GlobalPoint):
         """Callback to receive a superior goalpoint."""
-        self.superior_goal_point = msg #np.array([msg.x, msg.y, msg.z])
+        if msg.point.x == 0 and msg.point.y == 0 and msg.point.z == 0:
+            self.goal_point = None
+            rospy.loginfo("Goal point removed")
+        else:
+            self.goal_point = msg
+            rospy.loginfo("Goal point received")
 
-        rospy.loginfo(f"Received superior goalpoint: {self.superior_goal_point}")
 
     def odom_callback(self, msg):
         """Updates current position, orientation, and velocity from odometry."""
@@ -82,9 +83,9 @@ class CaveExplorerNode:
         self.filtered_cloud = []
         for point in full_cloud:
             relative_position = point - self.current_position
-            if (np.dot(relative_position, forward_vector) > -50 and  # In front of the drone
-                    abs(np.dot(relative_position, np.array([0.0, 1.0, 0.0]))) <= 100.0 and  # 30m width (±15m)
-                    abs(np.dot(relative_position, np.array([0.0, 0.0, 1.0]))) <= 100.0):  # 30m height (±15m)
+            if (np.dot(relative_position, forward_vector) > -50 and
+                    abs(np.dot(relative_position, np.array([0.0, 1.0, 0.0]))) <= 100.0 and
+                    abs(np.dot(relative_position, np.array([0.0, 0.0, 1.0]))) <= 100.0):
                 self.filtered_cloud.append(point)
 
         self.cloud = np.array(self.filtered_cloud)
@@ -146,14 +147,13 @@ class CaveExplorerNode:
         nearest_distance = np.min(distances)
         return min(self.max_radius, nearest_distance - 0.1)
 
-    def add_arrow_marker(self, point, father_point, radius):
+    def add_arrow_marker(self, point, father_point, id):
         """Adds an arrow marker to represent the path, pointing from father to child."""
         marker = Marker()
         marker.header.frame_id = "world"  # Use the `world` frame
         marker.header.stamp = rospy.Time.now()
         marker.ns = "path"
-        marker.id = self.marker_id
-        self.marker_id += 1
+        marker.id = id
         marker.type = Marker.ARROW
         marker.action = Marker.ADD
 
@@ -203,7 +203,7 @@ class CaveExplorerNode:
             node = path_nodes[i]
             next_node = path_nodes[i + 1]
 
-            self.add_arrow_marker(next_node['position'], node['position'], node['radius'])
+            self.add_arrow_marker(next_node['position'], node['position'], i)
 
             # Create a new GlobalPoint message
             global_point = GlobalPoint()
@@ -220,6 +220,12 @@ class CaveExplorerNode:
             global_path.points[-1].orientation = orientation
         return global_path
 
+
+    def close_to_goal(self, node, goal):
+        if self.goal_point is None:
+            return False
+        else:
+            return np.linalg.norm(goal - node['position']) < self.max_radius
         
 
     def explore(self):
@@ -247,24 +253,15 @@ class CaveExplorerNode:
             start_position = self.current_position
             start_orientation = self.current_orientation
 
-            # define a goal point and cjeck whether a superior point is is existing
-            if self.superior_goal_point:
-                goal_point = self.superior_goal_point
-                distance_to_goal = np.linalg.norm(self.current_position
-                 - np.array([goal_point.point.x, goal_point.point.y, goal_point.point.z]))
-                
-                rospy.loginfo(f"Distance to superior goalpoint: {distance_to_goal:.2f} meters.")
-
-                if distance_to_goal < 0.5:
-                    rospy.loginfo("Superior goalpoint reached. Resuming autonomous exploration.")
-                    self.superior_goal_point = None
-                    continue
+            base_dis_goal = 2 * self.max_planning_distance
+            if self.goal_point is not None:
+                goal_point = np.array(
+                    [self.goal_point.point.x, self.goal_point.point.y, self.goal_point.point.z])
+                total_dis_to_goal = np.linalg.norm(goal_point - self.current_position)
             else:
-                start_orientation = self.current_orientation
-                goal_point = self.current_position + 2 * self.max_planning_distance * np.dot(
-                    start_orientation, np.array([1.0, 0.0, 0.0])
-                )
-                rospy.loginfo("Autonomous goalpoint assigned.")
+                goal_point = start_position + base_dis_goal * np.dot(start_orientation,
+                                                                     np.array([1.0, 0.0, 0.0]))
+
 
             point_nodes = [{'position': start_position, 'father': None, 'radius': 0.0}]
             best_node = point_nodes[0]
@@ -274,6 +271,17 @@ class CaveExplorerNode:
             total_distance = 0.0
 
             while total_distance < self.max_planning_distance:
+
+                if self.close_to_goal(best_node, goal_point):
+                    point_nodes.append({'position': goal_point, 'father': best_node, 'radius': 10.0})
+                    point_nodes.append({'position': best_node['position'] + np.array(
+                                                [10.0 * np.cos(self.goal_point.orientation),
+                                                 10.0 * np.sin(self.goal_point.orientation),
+                                                 self.goal_point.point.z]),
+                                        'father': goal_point,
+                                        'radius': 10.0})
+                    break
+
                 # Use the last node for exploration
                 current_node = best_node
                 forward_direction = np.dot(start_orientation, np.array([1.0, 0.0, 0.0])) if current_node['father'] is None else (current_node['position'] - current_node['father']['position']) / np.linalg.norm(current_node['position'] - current_node['father']['position'])
@@ -289,6 +297,8 @@ class CaveExplorerNode:
                     if max_radius < self.min_radius:
                         continue
                     distance_to_goal = np.linalg.norm(sampled_point - goal_point)
+                    if self.goal_point is not None:
+                        distance_to_goal *= (base_dis_goal / total_dis_to_goal)
                     distance_from_start = np.linalg.norm(sampled_point - start_position)
                     value = 3 * distance_from_start - 5 * distance_to_goal + 15 * max_radius
                     if value > best_value:
@@ -305,7 +315,7 @@ class CaveExplorerNode:
 
             # Reconstruct and publish the path
             rospy.logdebug("Maximum planning distance reached. Reconstructing and publishing path.")
-            global_path = self.reconstruct_path(best_node,self.superior_goal_point.orientation) if self.superior_goal_point else self.reconstruct_path(best_node)
+            global_path = self.reconstruct_path(best_node)
             self.global_path_pub.publish(global_path)
             self.path_pub.publish(self.path_markers)
             self.path_markers = MarkerArray()
