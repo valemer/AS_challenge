@@ -225,7 +225,7 @@ class JunctionDetectionNode:
                 j.angles = orientations
                 detections = junction['counter']
                 junction_array.junctions.append(j)
-                rospy.loginfo(f'Junction detected at: {position} with {orientations} and {detections}')
+                #rospy.loginfo(f'Junction detected at: {position} with {orientations} and {detections}')
         self.junction_pub.publish(junction_array)
 
 
