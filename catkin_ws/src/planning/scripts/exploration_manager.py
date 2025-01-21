@@ -93,9 +93,11 @@ class ExplorationManager:
         gp.point.x = last_unvisited_entrance[0]
         gp.point.y = last_unvisited_entrance[1]
         gp.point.z = last_unvisited_entrance[2]
-        gp.orientation.x = last_unvisited_entrance[3]
+        gp.orientation = last_unvisited_entrance[3]
 
         self.target_branch_entrance_pub.publish(gp)
+
+        rospy.loginfo(f"Sended GP: {gp.point.x, gp.point.y, gp.point.z}")
 
     def timer_callback(self, event):
         if not self.entrances:
