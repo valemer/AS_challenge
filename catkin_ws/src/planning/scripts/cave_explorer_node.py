@@ -316,8 +316,11 @@ class CaveExplorerNode:
             # Reconstruct and publish the path
             rospy.logdebug("Maximum planning distance reached. Reconstructing and publishing path.")
             global_path = self.reconstruct_path(best_node)
-            self.global_path_pub.publish(global_path)
-            self.path_pub.publish(self.path_markers)
+            if len(global_path.points) > 0:
+                self.global_path_pub.publish(global_path)
+                self.path_pub.publish(self.path_markers)
+            else:
+                rospy.logwarn("No path found.")
             self.path_markers = MarkerArray()
             self.cloud = []
             rate.sleep()
