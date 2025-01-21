@@ -47,7 +47,7 @@ class ExplorationManager:
             self.visited_locations.append(current_position)
 
     def create_branch_entrance_marker(self):
-        markers = MarkerArray()  
+        markers = MarkerArray()
         for entrance_point in self.branch_entrances:                 
             marker = Marker()
             marker.header.frame_id = "world"
@@ -80,10 +80,6 @@ class ExplorationManager:
                 junction = new_junctions[-(i+1)]
                 for angle in junction.angles:
                     entrance_point = GlobalPoint()
-                    # entrance_point.header=Header(
-                    #         stamp=rospy.Time.now(),
-                    #         frame_id="world"  # I dont know if we need it
-                    #     )
                     entrance_point.point.x = junction.position.x + self.postn_of_min_dist_pts* math.cos(angle)
                     entrance_point.point.y = junction.position.y + self.postn_of_min_dist_pts* math.sin(angle)
                     entrance_point.point.z = junction.position.z
@@ -94,7 +90,6 @@ class ExplorationManager:
                     self.branch_entrances.append(entrance_point)
                     rospy.loginfo(f"New branch entrance added: {entrance_point.point.x,entrance_point.point.y,entrance_point.point.z}")
                     self.branch_sources.append(new_len - i)
-                                        # Create a marker for the new branch entrance
 
             self.list_len = new_len
         self.create_branch_entrance_marker()
@@ -102,7 +97,6 @@ class ExplorationManager:
 
     def timer_callback(self, event):
         if not self.visited_locations or not self.branch_entrances:
-            #rospy.logwarn("No visited locations or branch entrances received yet.")
             return
 
         # Convert branch entrances and visited locations to NumPy arrays
@@ -159,7 +153,7 @@ class ExplorationManager:
         if len(self.branch_entrances) < len(branch_entrances_np):
             branch_entrance_positions = [entrance.point for entrance in self.branch_entrances]
             rospy.loginfo(f'Remaining branch entrances:{branch_entrance_positions} ')
-            self.create_branch_entrance_marker()
+        self.create_branch_entrance_marker()
         #rospy.loginfo(f'Unvisited branch entrances: {self.branch_entrances}')
         self.branch_sources_old = self.branch_sources
         self.branch_sources = new_branch_sources.tolist()
