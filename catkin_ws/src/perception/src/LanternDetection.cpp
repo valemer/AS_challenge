@@ -3,7 +3,7 @@
 LanternDetectionNode::LanternDetectionNode() :
 sync_(image_sub_, cloud_sub_, 10), tf_listener_(tf_buffer_),
 min_distance_(10.0),
-min_detections_(20),
+min_detections_(10),
 min_yellow_points_(50) {
 
     // Subscriptions
