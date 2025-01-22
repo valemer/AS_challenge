@@ -68,29 +68,30 @@ void StateMachine::lanternCallback(const geometry_msgs::PoseArray::ConstPtr& msg
 }
 
 void StateMachine::mainLoop(const ros::TimerEvent& t) {
-  switch(state_)
-  {
-  case TAKE_OFF:
-      takeOff();
-      break;
-  case GO:
-      flyToCave();
-      break;
-  case EXPLORE:
-      explore();
-      saveWayBack();
-      break;
-  case FLY_BACK:  // New state for flying back
+    switch(state_)
+    {
+        case TAKE_OFF:
+            takeOff();
+            break;
+        case GO:
+            flyToCave();
+            break;
+        case EXPLORE:
+            explore();
+            saveWayBack();
+            break;
+        case FLY_BACK:  // New state for flying back
             flyBack();
             break;
+        case LAND:
+            land();
+            break;
     }
-
     // Trigger FLY_BACK state when 4 or more lanterns are detected
     if (detected_lantern_count_ >= 4 && state_ != FLY_BACK) {
         state_ = FLY_BACK;
         ROS_INFO("Triggering FLY_BACK state: 4 or more lanterns detected.");
     }
-
 }
 
 void StateMachine::saveWayBack()
@@ -230,38 +231,31 @@ void StateMachine::explore() {
     pub_visited_locations_.publish(markers);
 
 
-    // if (!paths_sent_) {
-    //     std_msgs::Bool msg;
-    //     msg.data = true;
-    //     pub_controll_planner.publish(msg);
-    //     paths_sent_ = true;
-    // } else if (path_back_.size() > 10) {
-    //     std_msgs::Bool msg;
-    //     msg.data = false;
-    //     pub_controll_planner.publish(msg);
-    //     paths_sent_ = false;
-    //     state_ = FLY_BACK;
-    // }
-
-    std_msgs::Bool msg;
-    msg.data = true;
-
-    if (path_back_.size() > 10) {
-        msg.data = false;
+    if (!paths_sent_) {
+        std_msgs::Bool msg;
+        msg.data = true;
+        pub_controll_planner.publish(msg);
+        paths_sent_ = true;
+    } else if (path_back_.size() > 6) {
+        paths_sent_ = false;
         state_ = FLY_BACK;
     }
-
-    pub_controll_planner.publish(msg);
 
 }
 
 void StateMachine::flyBack() {
     ROS_INFO("Flying back to the starting point...");
 
+    std_msgs::Bool msg;
+    msg.data = false;
+    pub_controll_planner.publish(msg);
+
     static uint8_t state = 0; // State machine for flying back
 
     YAML::Node config = YAML::LoadFile(ros::package::getPath("planning") +
         "/config/state_machine_config.yaml");
+
+    static ros::Time last_time = ros::Time::now(); // initialize timer
 
     switch(state) {
         case 0: // fly back to entrance of cave
@@ -289,11 +283,23 @@ void StateMachine::flyBack() {
             current_goal_ << goal_point.x, goal_point.y, goal_point.z;
             
             state = 1; // stop publishing goal points and wait until we reach goal
+            last_time = ros::Time::now(); // reset timer
+            Eigen::Affine3d last_pose_ = current_pose_; // store current pose
 
             break;
         }
         case 1:
         {
+            if ((current_pose_.translation() - last_pose_.translation()).norm() > min_distance_to_travel_before_timeout_){
+                last_time = ros::Time::now(); // reset timer if drone moved
+                last_pose_ = current_pose_; // store current pose
+            }
+
+            if ((ros::Time::now() - last_time).toSec() > timeout_) { // check if drone is not moving x metres away after x seconds
+                ROS_INFO("Drone is not moving. Flying back to the entrance of the cave...");
+                state = 0;
+            }
+
             if (closeToGoal()) {
                 ROS_INFO("Reached the entrance of the cave. Flying back to the starting point...");
                 state = 2;
@@ -321,6 +327,9 @@ void StateMachine::flyBack() {
             pub_global_path_.publish(global_path);
 
             current_goal_ << global_point.point.x, global_point.point.y, global_point.point.z;
+            
+            last_time = ros::Time::now(); // reset timer
+            last_pose_ = current_pose_; // store current pose
 
             state = 3; // stop publishing goal points and wait until we reach goal
         
@@ -328,6 +337,19 @@ void StateMachine::flyBack() {
         }
         case 3:
         {
+            ROS_INFO("Current position: (%f, %f, %f)", current_pose_.translation().x(), current_pose_.translation().y(), current_pose_.translation().z());
+            ROS_INFO("Current goal: (%f, %f, %f)", current_goal_[0], current_goal_[1], current_goal_[2]);
+
+            if ((current_pose_.translation() - last_pose_.translation()).norm() > min_distance_to_travel_before_timeout_){
+                last_time = ros::Time::now(); // reset timer if drone moved
+                last_pose_ = current_pose_; // store current pose
+            }
+
+            if ((ros::Time::now() - last_time).toSec() > timeout_) { // check if drone is not moving x metres away after x seconds
+                ROS_INFO("Drone is not moving. Flying back to the starting point...");
+                state = 2;
+            }
+
             if (closeToGoal()) {
                 ROS_INFO("Reached the starting point. Landing...");
                 state = 4;

@@ -45,8 +45,8 @@ int main(int argc, char** argv) {
     ros::NodeHandle nh;
 
     // Subscribers for start and goal points
-    ros::Subscriber startSub = nh.subscribe("/start_points", 1, startPointsCB);
-    ros::Subscriber goalSub = nh.subscribe("/goal_points", 1, goalPointsCB);
+    ros::Subscriber startSub = nh.subscribe("/fly_back_start_points", 1, startPointsCB);
+    ros::Subscriber goalSub = nh.subscribe("/fly_back_goal_points", 1, goalPointsCB);
 
     // Publisher for the planned path
     plannedPathPub = nh.advertise<nav_msgs::Path>("/planned_path", 1);

@@ -80,6 +80,7 @@ private:
 
     // Current State Information
     Eigen::Affine3d current_pose_;
+    Eigen::Affine3d last_pose_;
     Eigen::Vector3d current_velocity_;
     pcl::PointCloud<pcl::PointXYZ>::Ptr point_cloud_;
     Eigen::Vector3d current_goal_;
@@ -96,4 +97,8 @@ private:
     double min_dis_waypoint_back;
     double max_dis_close_to_goal;
     float max_speed_in_cave_;
+
+    // flyBack Variables
+    double min_distance_to_travel_before_timeout_ = 1.5; 
+    double timeout_ = 9;
 };

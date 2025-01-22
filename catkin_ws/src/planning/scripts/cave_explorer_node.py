@@ -34,7 +34,7 @@ class CaveExplorerNode:
         # Subscribers
         rospy.Subscriber("current_state_est", Odometry, self.odom_callback)
         rospy.Subscriber("/octomap_point_cloud_centers", PointCloud2, self.point_cloud_callback)
-        rospy.Subscriber("/control_planner", Bool, self.control)
+        rospy.Subscriber("control_planner", Bool, self.control)
 
         # Publishers
         self.path_pub = rospy.Publisher("path_marker_array", MarkerArray, queue_size=1)
@@ -45,6 +45,7 @@ class CaveExplorerNode:
         self.explore()
 
     def odom_callback(self, msg):
+        # rospy.loginfo("Received odometry message")
         """Updates current position, orientation, and velocity from odometry."""
         self.current_position = np.array([msg.pose.pose.position.x,
                                           msg.pose.pose.position.y,
@@ -80,8 +81,8 @@ class CaveExplorerNode:
         self.cloud = np.array(self.filtered_cloud)
 
     def control(self, msg):
-        rospy.loginfo("Received control message: %s", msg)
-        self.running = msg
+        # rospy.loginfo("Received control message: %s", msg)
+        self.running = msg.data
 
     def sample_sphere_directed(self, center, direction, radius, max_angle_deg, step_deg):
         """Samples points on the sphere around the middle point by rotating in y and z directions."""
@@ -224,10 +225,7 @@ class CaveExplorerNode:
                 continue
 
             if not self.running:
-                rospy.loginfo("Stopping cave exploration.")
                 continue
-
-            rospy.loginfo("Starting cave exploration.")
 
             if best_node is not None:
                 dis = np.linalg.norm(self.current_position - best_node['father']['position'])
