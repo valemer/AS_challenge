@@ -64,7 +64,7 @@ private:
     ros::Publisher pub_max_v_;
     ros::Publisher pub_global_path_;
     ros::Publisher pub_controll_planner;
-    ros::Publisher pub_visited_locations_; // Publisher for visited locations
+    // ros::Publisher pub_visited_locations_; // Publisher for visited locations
     ros::Publisher pub_fly_back_start_points_;
     ros::Publisher pub_fly_back_goal_points_;
     ros::Subscriber sub_odom_;

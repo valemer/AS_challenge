@@ -10,8 +10,6 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 ## Find catkin macros and libraries
-## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   eigen_catkin
   catkin_simple
@@ -23,6 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
   roslib
   yaml_cpp_catkin
   fla_msgs
+  geometry_msgs # Ensure geometry_msgs is included
 )
 
 find_package( PCL 1.7 REQUIRED )
@@ -36,14 +35,16 @@ link_directories( ${PCL_LIBRARY_DIRS} )
 
 catkin_simple(ALL_DEPS_REQUIRED)
 
+## Add executables
 cs_add_executable(state_machine
-        src/state_machine.cpp
+  src/state_machine.cpp
 )
 
 cs_add_executable(trajectory_planner
-        src/trajectory_planner_node.cc
-        )
+  src/trajectory_planner_node.cc
+)
 
+## Install and Export
 cs_install()
 cs_export()
 
@@ -235,9 +236,10 @@ include_directories(
 
 # Install Python scripts
 catkin_install_python(PROGRAMS
-        scripts/manual_control.py
-        scripts/cave_explorer_node.py
-        DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  scripts/manual_control.py
+  scripts/cave_explorer_node.py
+  scripts/exploration_manager.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 #############
