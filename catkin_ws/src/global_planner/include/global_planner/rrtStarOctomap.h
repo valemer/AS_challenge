@@ -24,8 +24,10 @@ namespace globalPlanner{
 		rrtStarOctomap(const ros::NodeHandle& nh);
 	
 		// constructor:
-		rrtStarOctomap(const ros::NodeHandle& nh, double rNeighborhood, double maxNeighbors, std::vector<double> collisionBox, std::vector<double> envBox, double mapRes, double delQ=0.3, double dR=0.2, double connectGoalRatio=0.10, double timeout=1.0, bool visPath=true);
+		rrtStarOctomap(const ros::NodeHandle& nh, double rNeighborhood, double maxNeighbors, std::vector<double> collisionBox, std::vector<double> envBox, double mapRes, double delQ=0.3, double dR=0.2, double connectGoalRatio=0.10, double timeout=1.0, bool visPath=false);
 		
+		void updateMap();
+
 		void mapCB(const octomap_msgs::Octomap &msg);
 
 		// get neighborhood points from the vector
@@ -132,17 +134,22 @@ namespace globalPlanner{
 		// this->updateMap();
 
 		this->mapSub_ = this->nh_.subscribe("/octomap_full", 1, &rrtStarOctomap::mapCB, this);
-		ros::Rate r (10);
+		
+		// Visualization:
+		//this->startVisModule();
+		this->notUpdateSampleRegion_ = false;
+	}
+
+
+
+	void updateMap(){
+		ros::Rate r(10);
 		while (ros::ok() and this->map_ == NULL){
 			cout << "[RRTPlanner]: Wait for Map..." << endl;
 			ros::spinOnce();
 			r.sleep();
 		}
 		cout << "[RRTPlanner]: Map Updated!" << endl;
-		
-		// Visualization:
-		this->startVisModule();
-		this->notUpdateSampleRegion_ = false;
 	}
 
 	template <std::size_t N>
@@ -152,7 +159,7 @@ namespace globalPlanner{
 		// this->updateMap();
 
 		// Visualization:
-		this->startVisModule();
+		//this->startVisModule();
 	}
 
 	template <std::size_t N>
