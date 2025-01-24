@@ -41,7 +41,7 @@ class ExplorationManager:
         self.state = State.OBSERVING
     
     def control(self, msg):
-        # rospy.loginfo("Received control message: %s", msg)
+        # if received False, stop the exploration
         if msg.data == False:
             self.state = State.STOP
 

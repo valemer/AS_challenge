@@ -140,7 +140,6 @@ namespace globalPlanner{
 		this->notUpdateSampleRegion_ = false;
 	}
 
-
 	template <std::size_t N>
 	void rrtStarOctomap<N>::updateMap(){
 		ros::Rate r(10);

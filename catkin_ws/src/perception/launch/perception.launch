@@ -21,7 +21,6 @@
 
     <!-- Junction Detection Node -->
     <node name="junction_detection" pkg="perception" type="junction_detection.py" output="screen"></node>
-    <node name="dead_end_detection" pkg="perception" type="dead_end_detection.py" output="screen"></node>
 
 
 </launch>
