@@ -237,6 +237,7 @@ void StateMachine::explore() {
         pub_controll_planner.publish(msg);
         paths_sent_ = true;
     } else if (detected_lantern_count_ >= 5) { // TODO: if all lanterns found
+    //} else if (detected_lantern_count_ >= 2) { // TODO: if all lanterns found
         paths_sent_ = false;
         state_ = FLY_BACK;
     }
