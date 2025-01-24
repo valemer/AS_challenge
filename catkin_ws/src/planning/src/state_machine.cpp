@@ -58,7 +58,7 @@ void StateMachine::uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom) {
 
 void StateMachine::octomapCallback(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     pcl::fromROSMsg(*msg, *point_cloud_);
-    ROS_INFO("Received OctoMap PointCloud2 with %lu points.", point_cloud_->points.size());
+    // ROS_INFO("Received OctoMap PointCloud2 with %lu points.", point_cloud_->points.size());
 }
 
 // Callback to track detected lanterns
@@ -68,6 +68,7 @@ void StateMachine::lanternCallback(const geometry_msgs::PoseArray::ConstPtr& msg
 }
 
 void StateMachine::mainLoop(const ros::TimerEvent& t) {
+    // ROS_INFO("current position: (%f, %f, %f)", current_pose_.translation()[0], current_pose_.translation()[1], current_pose_.translation()[2]);
     switch(state_)
     {
         case TAKE_OFF:
@@ -88,7 +89,7 @@ void StateMachine::mainLoop(const ros::TimerEvent& t) {
             break;
     }
     // Trigger FLY_BACK state when 4 or more lanterns are detected
-    if (detected_lantern_count_ >= 5 && state_ != FLY_BACK) {
+    if (detected_lantern_count_ >= 4 && state_ != FLY_BACK) {
         state_ = FLY_BACK;
         ROS_INFO("Triggering FLY_BACK state: 4 or more lanterns detected.");
     }
@@ -236,7 +237,8 @@ void StateMachine::explore() {
         msg.data = true;
         pub_controll_planner.publish(msg);
         paths_sent_ = true;
-    } else if (detected_lantern_count_ >= 5) { // TODO: if all lanterns found
+    } else if (detected_lantern_count_ >= 4) { // TODO: if all lanterns found
+    //} else if (path_back_.size() >= 15){
         paths_sent_ = false;
         state_ = FLY_BACK;
     }
@@ -244,7 +246,7 @@ void StateMachine::explore() {
 }
 
 void StateMachine::flyBack() {
-    ROS_INFO("Flying back to the starting point...");
+    // ROS_INFO("Flying back to the starting point...");
 
     std_msgs::Bool msg;
     msg.data = false;
@@ -256,6 +258,8 @@ void StateMachine::flyBack() {
         "/config/state_machine_config.yaml");
 
     static ros::Time last_time = ros::Time::now(); // initialize timer
+
+    // ROS_INFO("state of flyback: %d", state);
 
     switch(state) {
         case 0: // fly back to entrance of cave
@@ -296,7 +300,7 @@ void StateMachine::flyBack() {
             }
 
             if ((ros::Time::now() - last_time).toSec() > timeout_) { // check if drone is not moving x metres away after x seconds
-                ROS_INFO("Drone is not moving. Flying back to the entrance of the cave...");
+                ROS_WARN("Drone is not moving. Flying back to the entrance of the cave...");
                 state = 0;
             }
 

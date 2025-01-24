@@ -141,8 +141,8 @@ namespace globalPlanner{
 	}
 
 
-
-	void updateMap(){
+	template <std::size_t N>
+	void rrtStarOctomap<N>::updateMap(){
 		ros::Rate r(10);
 		while (ros::ok() and this->map_ == NULL){
 			cout << "[RRTPlanner]: Wait for Map..." << endl;

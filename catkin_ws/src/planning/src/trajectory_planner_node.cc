@@ -164,7 +164,7 @@ void TrajectoryPlanner::planTrajectory(const fla_msgs::GlobalPath::ConstPtr& glo
 
 void TrajectoryPlanner::planTrajectoryInsideCave(const nav_msgs::Path::ConstPtr& plannedPath) {
 
-    ROS_INFO("Planning trajectory inside cave");
+    // ROS_INFO("Planning trajectory inside cave");
      // 3 Dimensional trajectory => through carteisan space, no orientation
     const int dimension = 3;
 
@@ -216,7 +216,7 @@ void TrajectoryPlanner::planTrajectoryInsideCave(const nav_msgs::Path::ConstPtr&
         middle.removeConstraint(mav_trajectory_generation::derivative_order::ACCELERATION);
     }
 
-    ROS_INFO("Vertices size: %lu", vertices.size());
+    // ROS_INFO("Vertices size: %lu", vertices.size());
 
     /******* Configure end point *******/
     // set end point constraints to desired position and set all derivatives to zero
@@ -251,7 +251,7 @@ void TrajectoryPlanner::planTrajectoryInsideCave(const nav_msgs::Path::ConstPtr&
     // solve trajectory
     opt.optimize();
 
-    ROS_INFO("Optimization done");
+    // ROS_INFO("Optimization done");
 
     // get trajectory as polynomial parameters
     mav_trajectory_generation::Trajectory trajectory;

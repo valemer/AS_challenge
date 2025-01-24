@@ -99,6 +99,6 @@ private:
     float max_speed_in_cave_;
 
     // flyBack Variables
-    double min_distance_to_travel_before_timeout_ = 1.5; 
-    double timeout_ = 9;
+    double min_distance_to_travel_before_timeout_ = 1; 
+    double timeout_ = 15;
 };
