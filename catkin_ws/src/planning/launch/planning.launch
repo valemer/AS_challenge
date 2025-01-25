@@ -24,4 +24,7 @@
         <rosparam command="load" file="$(find planning)/config/planner_config.yaml"/>
     </node>
 
+    <!-- bfs node -->
+    <node name="bfs" pkg="planning" type="bfs_node.py" output="screen" clear_params="true"></node>
+
 </launch>
