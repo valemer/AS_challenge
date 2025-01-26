@@ -100,5 +100,5 @@ private:
 
     // flyBack Variables
     double min_distance_to_travel_before_timeout_ = 1; 
-    double timeout_ = 15;
+    double timeout_ = 60;
 };

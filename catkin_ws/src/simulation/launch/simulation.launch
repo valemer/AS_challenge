@@ -67,5 +67,5 @@
 
   <include file="$(find perception)/launch/perception.launch" />
   <include file="$(find mapping)/launch/octomap_server.launch" />
-  <include file="$(find global_planner)/launch/rrt_star_interactive.launch" />
+  <!-- <include file="$(find global_planner)/launch/rrt_star_interactive.launch" /> -->
 </launch>

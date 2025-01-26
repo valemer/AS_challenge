@@ -1,6 +1,0 @@
-<launch>
-	<rosparam>/use_sim_time: 0</rosparam>
-	<!-- planner -->
-	<rosparam file="$(find global_planner)/cfg/rrt_planner.yaml" />
-	<node pkg="global_planner" type="rrt_star_interactive_node" name="rrt_star_interactive_node" output="screen" />
-</launch>

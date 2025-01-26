@@ -89,10 +89,10 @@ void StateMachine::mainLoop(const ros::TimerEvent& t) {
             break;
     }
     // Trigger FLY_BACK state when 4 or more lanterns are detected
-    if (detected_lantern_count_ >= 4 && state_ != FLY_BACK) {
-        state_ = FLY_BACK;
-        ROS_INFO("Triggering FLY_BACK state: 4 or more lanterns detected.");
-    }
+    // if (detected_lantern_count_ >= 4 && state_ != FLY_BACK) {
+    //     state_ = FLY_BACK;
+    //     ROS_INFO("Triggering FLY_BACK state: 4 or more lanterns detected.");
+    // }
 }
 
 void StateMachine::saveWayBack()
