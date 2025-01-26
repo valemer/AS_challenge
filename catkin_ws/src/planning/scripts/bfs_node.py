@@ -73,7 +73,7 @@ class BFS:
         self.adj[v].append(u)
 
     def find_path(self, start, goal):
-        rospy-loginfo("Finding path from {} to {}".format(start, goal))
+        rospy.loginfo("Finding path from {} to {}".format(start, goal))
         timer = rospy.Time.now()
 
         q = deque()
@@ -103,7 +103,7 @@ class BFS:
         path.reverse()
 
         rospy.loginfo("Path found in {} seconds".format((rospy.Time.now() - timer).to_sec()))
-        
+
         return path
 
     # def publish_path(self, path):
