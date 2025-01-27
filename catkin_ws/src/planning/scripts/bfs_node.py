@@ -12,6 +12,7 @@ class BFS:
         self.visited_locations = []  # Stores visited locations as 3D points
         self.start_point = None  # Start point for BFS
         self.goal_point = None  # Goal point for BFS
+        self.current_position = None  # Current position of the drone
 
         rospy.init_node('bfs_node', anonymous=True)
 
@@ -49,9 +50,9 @@ class BFS:
         return closest_index
 
     def current_position_callback(self, msg):
-        current_position = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z])
-        if not self.visited_locations or np.linalg.norm(current_position - np.array(self.visited_locations[-1])) > 5.0:
-            self.visited_locations.append(current_position)
+        self.current_position = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z])
+        if not self.visited_locations or np.linalg.norm(self.current_position - np.array(self.visited_locations[-1])) > 5.0:
+            self.visited_locations.append(self.current_position)
             self.update_graph()
             self.publish_graph_visualization()
 
@@ -73,7 +74,9 @@ class BFS:
         self.adj[v].append(u)
 
     def find_path(self, start, goal):
-        rospy.loginfo("Finding path from {} to {}".format(start, goal))
+        rospy.loginfo("Finding path from {},{},{}, to {},{},{}".format(self.start_point[0], self.start_point[1], self.start_point[2], self.goal_point[0], self.goal_point[1], self.goal_point[2]))
+        # rospy.loginfo("Start coordinates: x={}, y={}, z={}".format(self.start_point[0], self.start_point[1], self.start_point[2]))
+        # rospy.loginfo("Goal coordinates: x={}, y={}, z={}".format(self.goal_point[0], self.goal_point[1], self.goal_point[2]))
         timer = rospy.Time.now()
 
         q = deque()
@@ -107,6 +110,7 @@ class BFS:
         return path
 
     # def publish_path(self, path):
+    #     # Publish the path as a Path message
     #     path_msg = Path()
     #     path_msg.header.frame_id = "world"
     #     path_msg.header.stamp = rospy.Time.now()
@@ -120,24 +124,33 @@ class BFS:
     #         path_msg.poses.append(pose)
 
     #     self.planned_path_pub.publish(path_msg)
+    #     rospy.loginfo("Path: {}".format(path))
+
+    #     # Publish the path as a red line (LINE_STRIP)
+    #     path_marker = Marker()
+    #     path_marker.header.frame_id = "world"
+    #     path_marker.header.stamp = rospy.Time.now()
+    #     path_marker.id = 9999  # Unique ID for the path marker
+    #     path_marker.type = Marker.LINE_STRIP
+    #     path_marker.action = Marker.ADD
+    #     path_marker.scale.x = 0.2  # Thickness of the line
+    #     path_marker.color.r = 1.0
+    #     path_marker.color.g = 0.0
+    #     path_marker.color.b = 0.0
+    #     path_marker.color.a = 1.0
+
+    #     for index in path:
+    #         point = Point()
+    #         point.x = self.visited_locations[index][0]
+    #         point.y = self.visited_locations[index][1]
+    #         point.z = self.visited_locations[index][2]
+    #         path_marker.points.append(point)
+
+    #     self.graph_visualization_pub.publish(MarkerArray(markers=[path_marker]))
 
     def publish_path(self, path):
-        # Publish the path as a Path message
-        path_msg = Path()
-        path_msg.header.frame_id = "world"
-        path_msg.header.stamp = rospy.Time.now()
 
-        for index in path:
-            pose = PoseStamped()
-            pose.header.frame_id = "world"
-            pose.pose.position.x = self.visited_locations[index][0]
-            pose.pose.position.y = self.visited_locations[index][1]
-            pose.pose.position.z = self.visited_locations[index][2]
-            path_msg.poses.append(pose)
-
-        self.planned_path_pub.publish(path_msg)
-
-        # Publish the path as a red line (LINE_STRIP)
+        # Visualize the entire path as a red line (LINE_STRIP)
         path_marker = Marker()
         path_marker.header.frame_id = "world"
         path_marker.header.stamp = rospy.Time.now()
@@ -145,9 +158,9 @@ class BFS:
         path_marker.type = Marker.LINE_STRIP
         path_marker.action = Marker.ADD
         path_marker.scale.x = 0.2  # Thickness of the line
-        path_marker.color.r = 1.0
+        path_marker.color.r = 0.0
         path_marker.color.g = 0.0
-        path_marker.color.b = 0.0
+        path_marker.color.b = 1.0
         path_marker.color.a = 1.0
 
         for index in path:
@@ -158,6 +171,39 @@ class BFS:
             path_marker.points.append(point)
 
         self.graph_visualization_pub.publish(MarkerArray(markers=[path_marker]))
+
+        max_waypoints = 5
+        total_waypoints = len(path)
+
+        for i in range(0, total_waypoints, max_waypoints):
+            # Get the next batch of waypoints (up to max_waypoints)
+            batch = path[i:i + max_waypoints]
+
+            # Publish the current batch as a Path message
+            path_msg = Path()
+            path_msg.header.frame_id = "world"
+            path_msg.header.stamp = rospy.Time.now()
+
+            for index in batch:
+                pose = PoseStamped()
+                pose.header.frame_id = "world"
+                pose.pose.position.x = self.visited_locations[index][0]
+                pose.pose.position.y = self.visited_locations[index][1]
+                pose.pose.position.z = self.visited_locations[index][2]
+                path_msg.poses.append(pose)
+
+            self.planned_path_pub.publish(path_msg)
+            rospy.loginfo("BFS node: Published waypoints: {}".format(batch))
+
+            # Wait until the drone is near the last waypoint in the current batch
+            last_waypoint = np.array(self.visited_locations[batch[-1]])
+            while not rospy.is_shutdown():
+                # current_position = np.array([self.current_position[0], self.current_position[1], self.current_position[2]])
+                if np.linalg.norm(self.current_position - last_waypoint) < 1.0:  # Threshold of 1 meter
+                    rospy.loginfo("BFS node: Reached waypoint: {}".format(batch[-1]))
+                    break
+                rospy.sleep(0.1)  # Check every 100 ms
+
 
     def publish_graph_visualization(self):
         marker_array = MarkerArray()
