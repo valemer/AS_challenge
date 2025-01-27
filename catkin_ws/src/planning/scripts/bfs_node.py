@@ -104,6 +104,8 @@ class BFS:
             path.append(current)
             current = parent[current]
         path.reverse()
+        # Append the goal point to the end of the path
+        path.append(self.goal_point)
 
         rospy.loginfo("Path found in {} seconds".format((rospy.Time.now() - timer).to_sec()))
 
@@ -176,8 +178,12 @@ class BFS:
         total_waypoints = len(path)
 
         for i in range(0, total_waypoints, max_waypoints):
-            # Get the next batch of waypoints (up to max_waypoints)
-            batch = path[i:i + max_waypoints]
+            if i + max_waypoints < total_waypoints:
+                # Get the next batch of waypoints (up to max_waypoints)
+                batch = path[i:i + max_waypoints]
+            else:
+                # Get the remaining waypoints
+                batch = path[i:]
 
             # Publish the current batch as a Path message
             path_msg = Path()
