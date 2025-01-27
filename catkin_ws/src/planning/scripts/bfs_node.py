@@ -104,8 +104,8 @@ class BFS:
             path.append(current)
             current = parent[current]
         path.reverse()
-        # Append the goal point to the end of the path
-        path.append(self.goal_point)
+        # # Append the goal point to the end of the path
+        # path.append(self.goal_point)
 
         rospy.loginfo("Path found in {} seconds".format((rospy.Time.now() - timer).to_sec()))
 
@@ -209,6 +209,18 @@ class BFS:
                     rospy.loginfo("BFS node: Reached waypoint: {}".format(batch[-1]))
                     break
                 rospy.sleep(0.1)  # Check every 100 ms
+        
+        path_msg = Path()
+        path_msg.header.frame_id = "world"
+        path_msg.header.stamp = rospy.Time.now()
+        
+        pose = PoseStamped()
+        pose.header.frame_id = "world"
+        pose.pose.position.x = self.goal_point[0]
+        pose.pose.position.y = self.goal_point[1]
+        pose.pose.position.z = self.goal_point[2]
+        path_msg.poses.append(pose)
+        self.planned_path_pub.publish(path_msg)  # Clear the path
 
 
     def publish_graph_visualization(self):
