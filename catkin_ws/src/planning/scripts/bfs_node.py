@@ -14,6 +14,9 @@ class BFS:
         self.goal_point = None  # Goal point for BFS
         self.current_position = None  # Current position of the drone
 
+        self.min_distance_between_nodes = 10.0  # Minimum distance between nodes in the graph
+        self.max_distance_between_nodes = 15.0  # Maximum distance between nodes in the graph
+
         rospy.init_node('bfs_node', anonymous=True)
 
         rospy.Subscriber('/current_state_est', Odometry, self.current_position_callback)
@@ -51,7 +54,7 @@ class BFS:
 
     def current_position_callback(self, msg):
         self.current_position = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z])
-        if not self.visited_locations or np.linalg.norm(self.current_position - np.array(self.visited_locations[-1])) > 5.0:
+        if not self.visited_locations or np.linalg.norm(self.current_position - np.array(self.visited_locations[-1])) > self.min_distance_between_nodes:
             self.visited_locations.append(self.current_position)
             self.update_graph()
             self.publish_graph_visualization()
@@ -64,9 +67,9 @@ class BFS:
         if current_index > 0:
             self.add_edge(current_index, current_index - 1)
 
-        # Connect to any node within 5m
+        # Connect to any node withinx the specified distance
         for i in range(current_index):
-            if np.linalg.norm(self.visited_locations[current_index] - self.visited_locations[i]) <= 5.0:
+            if np.linalg.norm(self.visited_locations[current_index] - self.visited_locations[i]) <= self.max_distance_between_nodes:
                 self.add_edge(current_index, i)
 
     def add_edge(self, u, v):

@@ -35,8 +35,7 @@ class ExplorationManager:
         rospy.Subscriber('/junctions_array', JunctionArray, self.junctions_callback)
         rospy.Subscriber('/current_state_est',Odometry,self.current_position_callback)
         rospy.Subscriber("control_planner", Bool, self.control)
-        self.target_branch_entrance_pub = rospy.Publisher('/fly_back_goal_points', Point, queue_size=10)
-        self.current_position_pub = rospy.Publisher('/fly_back_start_points', Point, queue_size=10)
+        self.target_branch_entrance_pub = rospy.Publisher('/goal_point', GlobalPoint, queue_size=10)
         self.marker_pub = rospy.Publisher('/branch_entrances_markers', MarkerArray, queue_size=10)
         self.timer = rospy.Timer(rospy.Duration(1), self.timer_callback)
 
@@ -99,21 +98,15 @@ class ExplorationManager:
         for entrance in self.entrances:
             if not entrance[4]:
                 last_unvisited_entrance = entrance
-        
-        start_point = Point()
-        start_point.x = self.current_position[0]
-        start_point.y = self.current_position[1]
-        start_point.z = self.current_position[2]
+        gp = GlobalPoint()
+        gp.point.x = last_unvisited_entrance[0]
+        gp.point.y = last_unvisited_entrance[1]
+        gp.point.z = last_unvisited_entrance[2]
+        gp.orientation = last_unvisited_entrance[3]
 
-        goal_point = Point()
-        goal_point.x = last_unvisited_entrance[0]
-        goal_point.y = last_unvisited_entrance[1]
-        goal_point.z = last_unvisited_entrance[2]
+        self.target_branch_entrance_pub.publish(gp)
 
-        self.current_position_pub.publish(start_point)
-        self.target_branch_entrance_pub.publish(goal_point)
-
-        rospy.loginfo(f"Sended GP to not explored entrance: {goal_point.x}, {goal_point.y}, {goal_point.z}")
+        rospy.loginfo(f"Sended GP: {gp.point.x, gp.point.y, gp.point.z}")
 
         self.goal = last_unvisited_entrance[:3]
 
