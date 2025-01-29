@@ -4,6 +4,7 @@
 #include <ros/ros.h>
 #include <Eigen/Dense>
 #include <nav_msgs/Odometry.h>
+#include <nav_msgs/Path.h>
 #include <eigen_conversions/eigen_msg.h>
 #include "fla_msgs/GlobalPath.h"
 #include <mav_trajectory_generation/polynomial_optimization_nonlinear.h>
@@ -22,6 +23,8 @@ public:
 
     void planTrajectory(const fla_msgs::GlobalPath::ConstPtr& globalPath);
 
+    void planTrajectoryInsideCave(const nav_msgs::Path::ConstPtr& plannedPath);
+
     bool publishTrajectory(const mav_trajectory_generation::Trajectory& trajectory);
 
 private:
@@ -29,6 +32,7 @@ private:
     ros::Publisher pub_trajectory_;
     ros::Subscriber sub_max_speed_;
     ros::Subscriber sub_global_path_;
+    ros::Subscriber sub_planned_path_;
     ros::Subscriber sub_odom_;
 
     ros::NodeHandle nh_;

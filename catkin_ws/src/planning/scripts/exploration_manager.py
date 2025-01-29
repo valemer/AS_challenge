@@ -7,12 +7,14 @@ from geometry_msgs.msg import Point
 from visualization_msgs.msg import Marker, MarkerArray
 from fla_msgs.msg import JunctionArray, GlobalPoint
 from nav_msgs.msg import Odometry
+from std_msgs.msg import Header, Bool
 import numpy as np
 import math
 
 class State(Enum):
     OBSERVING = 1,
     CHANGING_PLACE = 2
+    STOP = 3
 
 class ExplorationManager:
     def __init__(self):
@@ -20,6 +22,7 @@ class ExplorationManager:
 
         self.visited_locations = []
         self.goal = None
+        self.current_position = None
 
 
         # Min distance to say we visited a branch
@@ -31,16 +34,22 @@ class ExplorationManager:
 
         rospy.Subscriber('/junctions_array', JunctionArray, self.junctions_callback)
         rospy.Subscriber('/current_state_est',Odometry,self.current_position_callback)
+        rospy.Subscriber("control_planner", Bool, self.control)
         self.target_branch_entrance_pub = rospy.Publisher('/goal_point', GlobalPoint, queue_size=10)
         self.marker_pub = rospy.Publisher('/branch_entrances_markers', MarkerArray, queue_size=10)
         self.timer = rospy.Timer(rospy.Duration(1), self.timer_callback)
 
         self.state = State.OBSERVING
+    
+    def control(self, msg):
+        # if received False, stop the exploration
+        if msg.data == False:
+            self.state = State.STOP
 
     def current_position_callback(self, msg):
-        current_position = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z])
-        if not self.visited_locations or np.linalg.norm(current_position - np.array(self.visited_locations[-1])) > 5.0:
-            self.visited_locations.append(current_position)
+        self.current_position = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z])
+        if not self.visited_locations or np.linalg.norm(self.current_position - np.array(self.visited_locations[-1])) > 5.0:
+            self.visited_locations.append(self.current_position)
 
     def pub_marker(self):
         markers = MarkerArray()
@@ -103,6 +112,9 @@ class ExplorationManager:
 
     def timer_callback(self, event):
         if not self.entrances:
+            return
+        
+        if self.state == State.STOP:
             return
 
         # update entrances whether they are visited (Marker: red = visited, green = need to be explored)

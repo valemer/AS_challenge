@@ -19,7 +19,7 @@ class JunctionDetectionNode:
         self.current_uav_height = 0.0
         self.detected_junctions = []
         self.min_dis_new_junction = 30.0
-        self.min_detections_in_area = 20
+        self.min_detections_in_area = 15
         self.square_size = 15
 
         # Subscribers
