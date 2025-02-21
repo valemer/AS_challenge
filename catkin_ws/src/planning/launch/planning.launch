@@ -15,10 +15,6 @@
         <rosparam command="load" file="$(find planning)/config/state_machine_config.yaml"/>
     </node>
 
-    <!-- State Machine -->
-    <node name="exploration_manager" pkg="planning" type="exploration_manager.py" output="screen" clear_params="true"></node>
-
-
     <!-- Cave Explorer Node -->
     <node name="cave_explorer" pkg="planning" type="cave_explorer_node.py" output="screen">
         <rosparam command="load" file="$(find planning)/config/planner_config.yaml"/>

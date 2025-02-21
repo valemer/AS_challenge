@@ -58,6 +58,10 @@
   <depend>geometry_msgs</depend>
   <depend>tf2_ros</depend>
   <depend>tf2_geometry_msgs</depend>
+  <depend>octomap_ros</depend>
+  <depend>octomap_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>fla_msgs</depend>
 
 
   <build_depend>roscpp</build_depend>

@@ -20,7 +20,7 @@
     <node name="map_filter" pkg="perception" type="map_filter" output="screen" clear_params = "true"></node>
 
     <!-- Junction Detection Node -->
-    <node name="junction_detection" pkg="perception" type="junction_detection.py" output="screen"></node>
+    <node name="junction_detection" pkg="perception" type="junction_detection" output="screen"></node>
 
 
 </launch>

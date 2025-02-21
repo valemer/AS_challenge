@@ -12,7 +12,13 @@ find_package(catkin REQUIRED COMPONENTS
         roscpp
         rospy
         std_msgs
-
+        sensor_msgs
+        pcl_conversions
+        pcl_ros
+        octomap_ros
+        octomap_msgs
+        nav_msgs
+        fla_msgs
 )
 
 catkin_simple(ALL_DEPS_REQUIRED)
@@ -21,8 +27,8 @@ cs_add_executable(lantern_detection
         src/LanternDetection.cpp
 )
 
-cs_add_executable(map_filter
-        src/MapFilter.cpp
+cs_add_executable(junction_detection
+        src/junction_detection.cpp
 )
 
 cs_install()
@@ -222,7 +228,3 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
-catkin_install_python(PROGRAMS
-        scripts/junction_detection.py
-        DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)

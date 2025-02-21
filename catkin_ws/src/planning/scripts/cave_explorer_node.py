@@ -92,7 +92,6 @@ class CaveExplorerNode:
         self.cloud = np.array(self.filtered_cloud)
 
     def control(self, msg):
-        # rospy.loginfo("Received control message: %s", msg)
         self.running = msg.data
 
     def sample_sphere_directed(self, center, direction, radius, max_angle_deg, step_deg):
@@ -232,7 +231,7 @@ class CaveExplorerNode:
 
     def explore(self):
         """Main exploration logic using nested loops."""
-        rate = rospy.Rate(1)
+        rate = rospy.Rate(10)
         rate.sleep()
         best_node = None
         while not rospy.is_shutdown():
@@ -248,7 +247,7 @@ class CaveExplorerNode:
 
             if best_node is not None:
                 dis = np.linalg.norm(self.current_position - best_node['father']['position'])
-                if dis > 0.5:
+                if dis > 5.0:
                     continue
 
             start_position = self.current_position

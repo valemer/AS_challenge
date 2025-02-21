@@ -29,8 +29,7 @@ add_message_files(
   Latency.msg
   ImageSegmentation.msg
   Keypoint.msg
-  Junction.msg
-  JunctionArray.msg
+  Junctions.msg
 )
 
 generate_messages(
