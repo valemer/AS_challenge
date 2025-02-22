@@ -14,8 +14,8 @@ class BFS:
         self.goal_point = None  # Goal point for BFS
         self.current_position = None  # Current position of the drone
 
-        self.min_distance_between_nodes = 10.0  # Minimum distance between nodes in the graph
-        self.max_distance_between_nodes = 15.0  # Maximum distance between nodes in the graph
+        self.min_distance_between_nodes = 20.0  # Minimum distance between nodes in the graph
+        self.max_distance_between_nodes = 30.0  # Maximum distance between nodes in the graph
 
         rospy.init_node('bfs_node', anonymous=True)
 
@@ -28,19 +28,34 @@ class BFS:
 
     def start_point_callback(self, msg):
         self.start_point = np.array([msg.x, msg.y, msg.z])
+        rospy.loginfo("received start: {}".format(self.start_point))
         self.check_and_run_bfs()
 
     def goal_point_callback(self, msg):
         self.goal_point = np.array([msg.x, msg.y, msg.z])
+        rospy.loginfo("received goal: {}".format(self.goal_point))
         self.check_and_run_bfs()
 
     def check_and_run_bfs(self):
-        if self.start_point is not None and self.goal_point is not None:
-            start_index = self.find_closest_node(self.start_point)
-            goal_index = self.find_closest_node(self.goal_point)
-            if start_index is not None and goal_index is not None:
-                path = self.find_path(start_index, goal_index)
-                self.publish_path(path)
+        if self.goal_point is None:
+            rospy.loginfo("goal missing for bfs")
+            return
+        if self.start_point is None:
+            rospy.loginfo("start missing for bfs")
+            return
+
+        start_index = self.find_closest_node(self.start_point)
+        goal_index = self.find_closest_node(self.goal_point)
+
+        if start_index is None:
+            rospy.loginfo("start index missing for bfs")
+            return
+        if goal_index is None:
+            rospy.loginfo("goal index missing for bfs")
+            return
+
+        path = self.find_path(start_index, goal_index)
+        self.publish_path(path)
 
     def find_closest_node(self, point):
         min_dist = float('inf')
@@ -54,7 +69,7 @@ class BFS:
 
     def current_position_callback(self, msg):
         self.current_position = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z])
-        if not self.visited_locations or np.linalg.norm(self.current_position - np.array(self.visited_locations[-1])) > self.min_distance_between_nodes:
+        if not self.visited_locations or not any(np.linalg.norm(self.current_position - np.array(loc)) < self.min_distance_between_nodes for loc in self.visited_locations):
             self.visited_locations.append(self.current_position)
             self.update_graph()
             self.publish_graph_visualization()
@@ -177,7 +192,7 @@ class BFS:
 
         self.graph_visualization_pub.publish(MarkerArray(markers=[path_marker]))
 
-        max_waypoints = 10
+        max_waypoints = 20
         total_waypoints = len(path)
 
         for i in range(0, total_waypoints, max_waypoints):
@@ -208,7 +223,7 @@ class BFS:
             last_waypoint = np.array(self.visited_locations[batch[-1]])
             while not rospy.is_shutdown():
                 # current_position = np.array([self.current_position[0], self.current_position[1], self.current_position[2]])
-                if np.linalg.norm(self.current_position - last_waypoint) < 1.0:  # Threshold of 1 meter
+                if np.linalg.norm(self.current_position - last_waypoint) < 10.0:  # Threshold of 1 meter
                     rospy.loginfo("BFS node: Reached waypoint: {}".format(batch[-1]))
                     break
                 rospy.sleep(0.1)  # Check every 100 ms

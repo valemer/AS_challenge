@@ -53,7 +53,6 @@ public:
     void land();
 
     // Utility Functions
-    void saveWayBack();
     void publishPath(const std::list<Eigen::Vector4d>& path);
     bool closeToGoal();
     void loadAndSendPath(const std::string& path);
@@ -97,6 +96,7 @@ private:
     double min_dis_waypoint_back;
     double max_dis_close_to_goal;
     float max_speed_in_cave_;
+    float max_speed_out_cave_;
 
     // flyBack Variables
     double min_distance_to_travel_before_timeout_ = 1; 
