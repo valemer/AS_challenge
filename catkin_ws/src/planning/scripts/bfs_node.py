@@ -177,7 +177,7 @@ class BFS:
 
         self.graph_visualization_pub.publish(MarkerArray(markers=[path_marker]))
 
-        max_waypoints = 5
+        max_waypoints = 10
         total_waypoints = len(path)
 
         for i in range(0, total_waypoints, max_waypoints):

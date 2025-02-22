@@ -46,12 +46,12 @@ public:
     }
 
     void controlCallback(const std_msgs::Bool::ConstPtr& msg) {
-        running = msg->data;
-        if (running) {
+        if (!running && msg->data) {
             ROS_INFO("Junction Detection started");
-        } else {
+        } else if (running && !msg->data) {
             ROS_INFO("Junction Detection stopped");
         }
+        running = msg->data;
     }
 
     void uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom) {

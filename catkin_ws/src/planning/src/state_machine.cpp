@@ -64,7 +64,7 @@ void StateMachine::octomapCallback(const sensor_msgs::PointCloud2::ConstPtr& msg
 // Callback to track detected lanterns
 void StateMachine::lanternCallback(const geometry_msgs::PoseArray::ConstPtr& msg) {
     detected_lantern_count_ = msg->poses.size(); // Get the number of detected lanterns
-    ROS_INFO("Detected lanterns: %d", detected_lantern_count_);
+    ROS_INFO_THROTTLE(10, "Detected lanterns: %d", detected_lantern_count_);
 }
 
 void StateMachine::mainLoop(const ros::TimerEvent& t) {
@@ -238,7 +238,6 @@ void StateMachine::explore() {
         pub_controll_planner.publish(msg);
         paths_sent_ = true;
     } else if (detected_lantern_count_ >= 5) { // TODO: if all lanterns found
-    //} else if (path_back_.size() >= 15){
         paths_sent_ = false;
         state_ = FLY_BACK;
     }
@@ -246,7 +245,7 @@ void StateMachine::explore() {
 }
 
 void StateMachine::flyBack() {
-    // ROS_INFO("Flying back to the starting point...");
+    ROS_INFO("Flying back to the starting point...");
 
     std_msgs::Bool msg;
     msg.data = false;
@@ -264,7 +263,7 @@ void StateMachine::flyBack() {
     switch(state) {
         case 0: // fly back to entrance of cave
         { 
-            ROS_INFO("Flying back to the entrance of the cave...");
+            ROS_INFO_THROTTLE(30, "Flying back to the entrance of the cave...");
             geometry_msgs::Point start_point, goal_point;
 
             start_point.x = current_pose_.translation().x();

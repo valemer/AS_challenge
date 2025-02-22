@@ -107,6 +107,10 @@ class CaveExplorerNode:
             self.kd_tree = None
 
     def control(self, msg):
+        if msg.data and not self.running:
+            rospy.loginfo("Cave Explorer started")
+        elif not msg.data and self.running:
+            rospy.loginfo("Cave Explorer stopped")
         self.running = msg.data
 
     def sample_sphere_directed(self, center, direction, radius, max_angle_deg, step_deg):
@@ -341,7 +345,7 @@ class CaveExplorerNode:
 
             # Measure how long the entire inner loop took
             loop_duration = time.time() - loop_start_time
-            rospy.loginfo(f"Inner planning loop took {loop_duration:.3f} seconds.")
+            rospy.logdebug(f"Inner planning loop took {loop_duration:.3f} seconds.")
 
             # Reconstruct and publish the path
             rospy.logdebug("Maximum planning distance or goal reached. Reconstructing path.")
