@@ -44,6 +44,10 @@ cs_add_executable(trajectory_planner
   src/trajectory_planner_node.cc
 )
 
+cs_add_executable(cave_explorer
+        src/cave_explorer.cpp
+)
+
 ## Install and Export
 cs_install()
 cs_export()

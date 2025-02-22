@@ -103,7 +103,7 @@ Visualization Manager:
           Marker Topic: /lantern_detection_marker_array
           Name: Lantern Detections
           Namespaces:
-            yellow_points: true
+            {}
           Queue Size: 100
           Value: true
         - Class: rviz/MarkerArray
@@ -218,7 +218,7 @@ Visualization Manager:
           Marker Topic: /path_marker_array
           Name: MarkerArray
           Namespaces:
-            path: true
+            {}
           Queue Size: 100
           Value: true
         - Class: rviz/MarkerArray
@@ -275,7 +275,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 343.4509582519531
+      Distance: 39.89313507080078
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -291,9 +291,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.1847972869873047
+      Pitch: 0.7797974944114685
       Target Frame: body
-      Yaw: 1.3904128074645996
+      Yaw: 6.248598575592041
     Saved: ~
 Window Geometry:
   Displays:
