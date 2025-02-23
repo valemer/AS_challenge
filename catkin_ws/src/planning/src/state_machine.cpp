@@ -165,9 +165,11 @@ void StateMachine::loadAndSendPath(const std::string& path) {
         }
 
 
-        if (path == "flyToCave" && std::next(it) != config[path].end())
-            path_back_.emplace_front((*it)[0].as<float>(), (*it)[1].as<float>(), (*it)[2].as<float>(),
-                std::fmod((*it)[3].as<float>() + M_PI, 2 * M_PI));
+        if (path == "flyToCave") {
+            auto point = *config["flyBack"].begin();
+            path_back_.emplace_front(point[0].as<float>(), point[1].as<float>(), point[2].as<float>(),
+                std::fmod(point[3].as<float>() + M_PI, 2 * M_PI));
+        }
     }
     pub_global_path_.publish(global_path);
 
