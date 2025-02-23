@@ -89,7 +89,8 @@ private:
     std::list<Eigen::Vector4d> path_back_;
 
     // Lantern Detection Variables
-    int detected_lantern_count_; // Tracks the number of detected lanterns
+    int detected_lantern_count_;
+    int lantern_search_num_;
 
     // Parameters
     int time_between_states_s;

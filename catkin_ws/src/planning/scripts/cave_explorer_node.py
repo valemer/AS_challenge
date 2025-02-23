@@ -355,6 +355,8 @@ class CaveExplorerNode:
                 self.path_pub.publish(self.path_markers)
             else:
                 rospy.logwarn("No path found.")
+                self.goal_point = None
+                self.explore()
 
             # Clear markers and cloud for the next loop
             self.path_markers = MarkerArray()

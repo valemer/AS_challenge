@@ -341,9 +341,9 @@ bool PolynomialOptimization<_N>::solveLinear() {
         derivative_to_optimize_ <= kHighestDerivativeToOptimize);
   // Catch the fully constrained case:
   if (n_free_constraints_ == 0) {
-    DLOG(WARNING)
-        << "No free constraints set in the vertices. Polynomial can "
-           "not be optimized. Outputting fully constrained polynomial.";
+    //DLOG(WARNING)
+    //    << "No free constraints set in the vertices. Polynomial can "
+    //       "not be optimized. Outputting fully constrained polynomial.";
     updateSegmentsFromCompactConstraints();
     return true;
   }

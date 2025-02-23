@@ -21,7 +21,8 @@ StateMachine::StateMachine() :
         max_dis_close_to_goal(1.0),
         max_speed_in_cave_(5.0),
         max_speed_out_cave_(15.0),
-        detected_lantern_count_(0) // Initialize the lantern count
+        detected_lantern_count_(0),
+        lantern_search_num_(5)
 {
     // publisher
     pub_max_v_ = nh_.advertise<std_msgs::Float32>("/max_speed", 1);
@@ -49,6 +50,7 @@ StateMachine::StateMachine() :
     nh_.getParam("state_machine/max_dis_close_to_goal", max_dis_close_to_goal);
     nh_.getParam("state_machine/max_speed_in_cave", max_speed_in_cave_);
     nh_.getParam("state_machine/max_speed_out_cave", max_speed_out_cave_);
+    nh_.getParam("state_machine/lantern_search_num", lantern_search_num_);
 }
 
 void StateMachine::uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom) {
@@ -61,8 +63,10 @@ void StateMachine::octomapCallback(const sensor_msgs::PointCloud2::ConstPtr& msg
 
 // Callback to track detected lanterns
 void StateMachine::lanternCallback(const geometry_msgs::PoseArray::ConstPtr& msg) {
-    detected_lantern_count_ = static_cast<int>(msg->poses.size()); // Get the number of detected lanterns
-    ROS_INFO_THROTTLE(10, "Detected lanterns: %d", detected_lantern_count_);
+    if (detected_lantern_count_ < static_cast<int>(msg->poses.size())) {
+        detected_lantern_count_ = static_cast<int>(msg->poses.size()); // Get the number of detected lanterns
+        ROS_INFO("Detected lanterns: %d", detected_lantern_count_);
+    }
 }
 
 void StateMachine::mainLoop(const ros::TimerEvent& t) {
@@ -182,7 +186,7 @@ void StateMachine::explore() {
         msg.data = true;
         pub_controll_planner.publish(msg);
         paths_sent_ = true;
-    } else if (detected_lantern_count_ >= 5) {
+    } else if (detected_lantern_count_ >= lantern_search_num_) {
         paths_sent_ = false;
         state_ = FLY_BACK;
     }

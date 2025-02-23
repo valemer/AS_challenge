@@ -417,10 +417,10 @@ int PolynomialOptimizationNonLinear<_N>::optimizeTimeAndFreeConstraints() {
   poly_opt_.solveLinear();
   std::vector<Eigen::VectorXd> free_constraints;
   poly_opt_.getFreeConstraints(&free_constraints);
-  if (free_constraints.size() == 0 || free_constraints.front().size() == 0) {
-    LOG(WARNING)
-        << "No free derivative variables, same as time-only optimization.";
-  }
+  //if (free_constraints.size() == 0 || free_constraints.front().size() == 0) {
+  //  LOG(WARNING)
+  //      << "No free derivative variables, same as time-only optimization.";
+  //}
 
   const size_t n_optimization_variables =
       n_segments + free_constraints.size() * free_constraints.front().size();

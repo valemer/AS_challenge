@@ -218,7 +218,7 @@ class BFS:
         self.graph_visualization_pub.publish(MarkerArray(markers=[path_marker]))
 
         # 2) Publish in batches so the drone follows gradually
-        max_waypoints = 20
+        max_waypoints = 1
         total_waypoints = len(poses)
 
         for i in range(0, total_waypoints, max_waypoints):
@@ -234,7 +234,7 @@ class BFS:
             path_msg.points = batch_poses
 
             self.planned_path_pub.publish(path_msg)
-            rospy.loginfo("BFS node: Published waypoints from {} to {}".
+            rospy.logdebug("BFS node: Published waypoints from {} to {}".
                           format(i, i + len(batch_poses) - 1))
 
             # Wait until the drone is near the last waypoint in the current batch
@@ -251,7 +251,7 @@ class BFS:
                     continue
 
                 if np.linalg.norm(self.current_position - last_waypoint) < 10.0:
-                    rospy.loginfo("BFS node: Reached waypoint index = {}".format(i + len(batch_poses) - 1))
+                    rospy.logdebug("BFS node: Reached waypoint index = {}".format(i + len(batch_poses) - 1))
                     break
                 rospy.sleep(0.1)  # Check every 100 ms
 
