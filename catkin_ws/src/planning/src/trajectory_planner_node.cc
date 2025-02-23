@@ -83,9 +83,15 @@ void TrajectoryPlanner::planTrajectory(const fla_msgs::GlobalPath::ConstPtr& glo
 
 
     for (size_t i = 0; i < points.size(); ++i) {
+        double prev_yaw = 0.0;
+        if (i == 0) {
+            prev_yaw = start_pos_4d(3);
+        } else {
+            prev_yaw = points[i - 1].orientation;
+        }
         Eigen::Vector4d pos;
         //  minimize angle difference to avoid 360m degree spin
-        double diff = start_pos_4d(3) - points[i].orientation;
+        double diff = prev_yaw - points[i].orientation;
         if (diff > M_PI) {
             points[i].orientation = points[i].orientation + 2 * M_PI;
         } else if (diff < -M_PI) {
