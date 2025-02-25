@@ -14,7 +14,6 @@
 #include <pcl/segmentation/extract_clusters.h>
 
 class StrongJunctionDetector {
-private:
     ros::NodeHandle nh_;
     ros::Subscriber octomap_sub_;
     ros::Subscriber sub_odom_;
@@ -25,20 +24,48 @@ private:
 
     octomap::OcTree* latest_octree_ = nullptr;
     geometry_msgs::Pose current_pose_;
-    bool running = false;
+    bool running_;
+    double cave_entry_clearance_;
+    double update_threshold_;
+    int skipped_;
+    int map_skips_;
+
+    double cave_entry_x_;
+    double cave_entry_y_;
+    double cave_entry_z_;
+
+    float search_radius_;
+    int min_neighbors_;
 
     // Store centroids in the order they were found:
     std::vector<pcl::PointXYZ> detected_centroids_;
 
 public:
-    StrongJunctionDetector() {
+    StrongJunctionDetector() :
+    running_(false),
+    cave_entry_clearance_(100.0),
+    update_threshold_(10.0),
+    skipped_(0),
+    map_skips_(2),
+    cave_entry_x_(0.0),
+    cave_entry_y_(0.0),
+    cave_entry_z_(0.0),
+    search_radius_(30.0),
+    min_neighbors_(275)
+    {
         clustered_junction_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/clustered_junction_points", 1);
         cluster_centroids_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/cluster_centroids", 1);
         goal_point_pub_ = nh_.advertise<fla_msgs::GlobalPoint>("/goal_point", 1);
 
         octomap_sub_ = nh_.subscribe("/octomap_full", 1, &StrongJunctionDetector::octomapCallback, this);
-        sub_odom_   = nh_.subscribe("/current_state_est", 1, &StrongJunctionDetector::uavOdomCallback, this);
+        sub_odom_ = nh_.subscribe("/current_state_est", 1, &StrongJunctionDetector::uavOdomCallback, this);
         sub_control_ = nh_.subscribe("/control_planner", 1, &StrongJunctionDetector::controlCallback, this);
+
+        nh_.getParam("junction_detection/cave_entry_clearance", cave_entry_clearance_);
+        nh_.getParam("junction_detection/update_threshold", update_threshold_);
+        nh_.getParam("junction_detection/skipped", skipped_);
+        nh_.getParam("junction_detection/search_radius", search_radius_);
+        nh_.getParam("junction_detection/min_neighbors", min_neighbors_);
     }
 
     ~StrongJunctionDetector() {
@@ -46,20 +73,32 @@ public:
     }
 
     void controlCallback(const std_msgs::Bool::ConstPtr& msg) {
-        if (!running && msg->data) {
+        if (!running_ && msg->data) {
             ROS_INFO("Junction Detection started");
-        } else if (running && !msg->data) {
+        } else if (running_ && !msg->data) {
             ROS_INFO("Junction Detection stopped");
         }
-        running = msg->data;
+        running_ = msg->data;
     }
 
     void uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom) {
         current_pose_ = odom->pose.pose;
+
+        if (cave_entry_x_ == 0.0 && running_) {
+            cave_entry_x_ = current_pose_.position.x;
+            cave_entry_y_ = current_pose_.position.y;
+            cave_entry_z_ = current_pose_.position.z;
+        }
     }
 
     void octomapCallback(const octomap_msgs::Octomap::ConstPtr& msg) {
-        if (!running) return;
+        if (!running_) return;
+
+        if (skipped_ < map_skips_) {
+            skipped_++;
+            return;
+        }
+
         octomap::AbstractOcTree* tree = octomap_msgs::fullMsgToMap(*msg);
         if (latest_octree_) {
             delete latest_octree_;
@@ -67,6 +106,7 @@ public:
         }
         latest_octree_ = dynamic_cast<octomap::OcTree*>(tree);
         processJunctions();
+        skipped_ = 0;
     }
 
     void processJunctions() {
@@ -92,7 +132,7 @@ public:
         float resolution = tree.getResolution();
 
         // Collect frontier points
-        #pragma omp parallel for
+        //#pragma omp parallel for
         for (auto it = tree.begin_leafs(), end = tree.end_leafs(); it != end; ++it) {
             if (tree.isNodeOccupied(*it)) continue;
 
@@ -116,7 +156,7 @@ public:
             }
 
             if (isFrontier) {
-                #pragma omp critical
+                //#pragma omp critical
                 {
                     all_junctions->push_back({pt.x(), pt.y(), pt.z()});
                 }
@@ -124,14 +164,12 @@ public:
         }
 
         // Filter by neighbors
-        float search_radius = 30.0;
-        int   min_neighbors = 275;
         pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
         kdtree.setInputCloud(all_junctions);
 
         #pragma omp parallel for
         for (size_t i = 0; i < all_junctions->size(); ++i) {
-            if (hasEnoughNeighbors(kdtree, (*all_junctions)[i], search_radius, min_neighbors)) {
+            if (hasEnoughNeighbors(kdtree, (*all_junctions)[i], search_radius_, min_neighbors_)) {
                 #pragma omp critical
                 {
                     filtered_junctions->push_back((*all_junctions)[i]);
@@ -171,10 +209,6 @@ public:
                 p.x = junctions->points[idx].x;
                 p.y = junctions->points[idx].y;
                 p.z = junctions->points[idx].z;
-                // Simple coloring
-                p.r = (cluster_id * 30) % 255;
-                p.g = (cluster_id * 50) % 255;
-                p.b = (cluster_id * 70) % 255;
 
                 clustered_cloud->push_back(p);
 
@@ -190,10 +224,10 @@ public:
                 centroid.z = sum_z / count;
 
                 // Example distance filter
-                double dist = std::sqrt(std::pow(centroid.x + 322.0, 2) +
-                                        std::pow(centroid.y +   7.0, 2) +
-                                        std::pow(centroid.z -  20.0, 2));
-                if (dist > 100.0) {
+                double dist = std::sqrt(std::pow(centroid.x - cave_entry_x_, 2) +
+                                        std::pow(centroid.y - cave_entry_y_, 2) +
+                                        std::pow(centroid.z - cave_entry_z_, 2));
+                if (dist > cave_entry_clearance_) {
                     current_frame_centroids->push_back(centroid);
                 }
             }
@@ -215,7 +249,7 @@ public:
         cluster_centroids_pub_.publish(centroid_output);
 
         // 3) Update our internal list of detected centroids
-        updateDetectedCentroids(current_frame_centroids, 10.0 /* threshold in meters */);
+        updateDetectedCentroids(current_frame_centroids, update_threshold_ /* threshold in meters */);
 
         // 4) Publish the newest (last) centroid if available
         if (!detected_centroids_.empty()) {

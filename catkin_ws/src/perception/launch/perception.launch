@@ -17,7 +17,9 @@
     </node>
 
     <!-- Junction Detection Node -->
-    <node name="junction_detection" pkg="perception" type="junction_detection" output="screen"></node>
+    <node name="junction_detection" pkg="perception" type="junction_detection" output="screen">
+        <rosparam command="load" file="$(find perception)/config/junction_detection_config.yaml"/>
+    </node>
 
 
 </launch>

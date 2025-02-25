@@ -1,0 +1,7 @@
+junction_detection:
+  cave_entry_clearance: 100.0
+  update_threshold: 10.0
+  skipped: 0
+  map_skips: 2
+  search_radius: 30.0
+  min_neighbors: 275
