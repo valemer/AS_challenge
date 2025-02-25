@@ -3,3 +3,5 @@ min_radius: 3.0
 sampling_angle_deg: 10
 max_sampling_angle_deg: 50
 max_planning_distance: 55.0
+replanning_distance: 5.0
+replanning_freq: 10.0

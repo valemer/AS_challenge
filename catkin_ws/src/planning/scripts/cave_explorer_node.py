@@ -24,13 +24,12 @@ class CaveExplorerNode:
         self.sampling_angle_deg = rospy.get_param("~sampling_angle_deg", 10)
         self.max_sampling_angle_deg = rospy.get_param("~max_sampling_angle_deg", 50)
         self.max_planning_distance = rospy.get_param("~max_planning_distance", 55.0)
+        self.replanning_distance = rospy.get_param("~replanning_distance", 5.0)
+        self.replanning_freq = rospy.get_param("~replanning_freq", 10.0)
 
         self.current_position = None
-        self.current_velocity = np.array([0.0, 0.0, 0.0])
         self.current_orientation = np.eye(3)
 
-        self.cloud = []
-        self.filtered_cloud = []
         self.path_markers = MarkerArray()
         self.best_point = None
         self.running = False
@@ -61,7 +60,7 @@ class CaveExplorerNode:
             self.goal_point = msg
 
     def odom_callback(self, msg):
-        """Updates current position, orientation, and velocity from odometry."""
+        """Updates current position and orientation from odom."""
         self.current_position = np.array([msg.pose.pose.position.x,
                                           msg.pose.pose.position.y,
                                           msg.pose.pose.position.z])
@@ -70,39 +69,29 @@ class CaveExplorerNode:
                                                       orientation.y,
                                                       orientation.z,
                                                       orientation.w])[:3, :3]
-        self.current_velocity = np.array([msg.twist.twist.linear.x,
-                                          msg.twist.twist.linear.y,
-                                          msg.twist.twist.linear.z])
-
-        rospy.loginfo_once("Position updated for the first time. Exploration will begin.")
 
     def point_cloud_callback(self, msg):
         """Processes the incoming point cloud and filters it to a region in front of the drone."""
-        # If you only want to load the cloud once per entire exploration cycle,
-        # you can leave the "if len(self.cloud) > 0: return" check.
-        if len(self.cloud) > 0:
+        if self.kd_tree is not None:
             return
 
         full_cloud = np.array([[p[0], p[1], p[2]] for p in pc2.read_points(msg, skip_nans=True)])
 
-        if self.current_position is None:
-            self.cloud = full_cloud
-        else:
+        filtered_cloud = []
+
+        if self.current_position is not None:
             # Filter point cloud to only include points in a region around the drone
             forward_vector = np.dot(self.current_orientation, np.array([1.0, 0.0, 0.0]))
-            self.filtered_cloud = []
             for point in full_cloud:
                 relative_position = point - self.current_position
                 if (np.dot(relative_position, forward_vector) > -50 and
                         abs(np.dot(relative_position, np.array([0.0, 1.0, 0.0]))) <= 100.0 and
                         abs(np.dot(relative_position, np.array([0.0, 0.0, 1.0]))) <= 100.0):
-                    self.filtered_cloud.append(point)
-
-            self.cloud = np.array(self.filtered_cloud)
+                    filtered_cloud.append(point)
 
         # Build a KD-Tree for fast nearest-neighbor lookups
-        if len(self.cloud) > 0:
-            self.kd_tree = cKDTree(self.cloud)
+        if len(filtered_cloud) > 0:
+            self.kd_tree = cKDTree(np.array(filtered_cloud))
         else:
             self.kd_tree = None
 
@@ -124,21 +113,20 @@ class CaveExplorerNode:
         for yaw in np.arange(-max_angle_rad, max_angle_rad + step_rad, step_rad):
             for pitch in np.arange(-max_angle_rad, max_angle_rad + step_rad, step_rad):
 
-                R_yaw = np.array([
+                r_yaw = np.array([
                     [np.cos(yaw), -np.sin(yaw), 0],
                     [np.sin(yaw),  np.cos(yaw),  0],
                     [0,            0,            1]
                 ])
-                R_pitch = np.array([
+                r_pitch = np.array([
                     [np.cos(pitch), 0, np.sin(pitch)],
                     [0,             1, 0           ],
                     [-np.sin(pitch),0, np.cos(pitch)]
                 ])
 
-                rotated_direction = R_yaw @ (R_pitch @ direction)
+                rotated_direction = r_yaw @ (r_pitch @ direction)
                 rotated_point = center + rotated_direction * radius
 
-                # Compute clearance using KD-tree
                 max_radius = self.calculate_max_radius(rotated_point)
 
                 sampled_points.append((rotated_point, max_radius))
@@ -149,7 +137,7 @@ class CaveExplorerNode:
         Calculates the maximum radius without obstacles for a given point.
         Uses a cKDTree query if available, otherwise returns self.max_radius.
         """
-        if self.kd_tree is None or len(self.cloud) == 0:
+        if self.kd_tree is None:
             return self.max_radius
 
         # Single nearest-neighbor query
@@ -230,13 +218,13 @@ class CaveExplorerNode:
         Main exploration logic using nested loops.
         We'll time the "inner loop" here to see how long each planning cycle takes.
         """
-        rate = rospy.Rate(10)
+        rate = rospy.Rate(self.replanning_freq)
         rate.sleep()
 
         best_node = None
 
         while not rospy.is_shutdown():
-            if self.current_position is None or len(self.cloud) < 1:
+            if self.current_position is None or self.kd_tree is None:
                 rospy.loginfo_once("Waiting for initial position update...")
                 rate.sleep()
                 continue
@@ -247,7 +235,7 @@ class CaveExplorerNode:
 
             if best_node is not None:
                 dis = np.linalg.norm(self.current_position - best_node['father']['position'])
-                if dis > 5.0:
+                if dis > self.replanning_distance:
                     rate.sleep()
                     continue
 
@@ -360,7 +348,6 @@ class CaveExplorerNode:
 
             # Clear markers and cloud for the next loop
             self.path_markers = MarkerArray()
-            self.cloud = []
             self.kd_tree = None
             rate.sleep()
 
