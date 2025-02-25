@@ -7,7 +7,7 @@ sudo apt update
 sudo apt install -y ros-noetic-depth-image-proc ros-noetic-octomap ros-noetic-octomap-server \
   ros-noetic-pcl-conversions git-lfs unzip python3-pip
 pip install pynput
-
+pip install scipy
 
 # build ros ws
 cd ./catkin_ws
