@@ -5,20 +5,10 @@
 #include <message_filters/time_synchronizer.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
-#include <cv_bridge/cv_bridge.h>
-#include <opencv2/opencv.hpp>
-#include <pcl_ros/point_cloud.h>
-#include <pcl/point_types.h>
-#include <pcl/conversions.h>
 #include <tf2_ros/transform_listener.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#include <geometry_msgs/PointStamped.h>
-#include <geometry_msgs/PoseArray.h> // for all lantern locations this is added
 #include <visualization_msgs/Marker.h>
-#include <visualization_msgs/MarkerArray.h>
 #include <vector>
 #include <unordered_map>
-#include <cmath>
 
 
 struct TrackedObject {
@@ -27,32 +17,68 @@ struct TrackedObject {
 };
 
 class LanternDetectionNode {
-private:
     ros::NodeHandle nh_;
 
+    // Subscriber
     message_filters::Subscriber<sensor_msgs::Image> image_sub_;
     message_filters::Subscriber<sensor_msgs::PointCloud2> cloud_sub_;
-    message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::PointCloud2> sync_;
-    ros::Publisher pub_all_lanterns_;  // Publisher for all detected lantern locations
+
+    // Publisher
+    ros::Publisher pub_all_lanterns_;
     ros::Publisher pub_world_coordinates_;
-    ros::Publisher pub_markers_; // For RViz visualization
+    ros::Publisher pub_markers_;
+
+    message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::PointCloud2> sync_;
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
+
     std::unordered_map<unsigned long, TrackedObject> tracked_objects_;
-    double min_distance_; // Minimum distance to consider two objects separate
-    int min_detections_;   // Minimum detections to consider a valid object
-    int min_yellow_points_;
+
+    double max_distance_same_detection_;            // max distance in m for same detection
+    double min_distance_new_detection_;             // min distance in m for new detection
+    int min_detections_;                            // min detections at location to be a valid detection
+    int min_detection_points_in_img_;               // min number of detection points in camera image
 
 public:
+    /**
+     * Constructor
+     */
     LanternDetectionNode();
 
+    /**
+     * Helper function to compute distance between two points
+     *
+     * @param a Point
+     * @param b Point
+     * @return double distance in m
+     */
     static double distance(const geometry_msgs::Point& a, const geometry_msgs::Point& b);
 
+    /**
+     * Update function for new detected point in global list of detections grouped by location
+     *
+     * @param detected_point
+     */
     void updateTrackedObjects(const geometry_msgs::Point& detected_point);
 
-    geometry_msgs::Point computeCentroid(const std::vector<geometry_msgs::Point>& points);
+    /**
+     * Helper function to compute Centroid of cloud cluster
+     *
+     * @param points vector ot Point
+     * @return Point as centroid of points
+     */
+    static geometry_msgs::Point computeCentroid(const std::vector<geometry_msgs::Point>& points);
 
+    /**
+     * Helper function to publish detections to RVIZ
+     */
     void publishMarkers();
 
+    /**
+     * Callback to get synced Image with lantern segmentation and Point cloud
+     *
+     * @param image_msg Ptr to Image
+     * @param cloud_msg Ptr to PointCloud2
+     */
     void callback(const sensor_msgs::ImageConstPtr& image_msg, const sensor_msgs::PointCloud2ConstPtr& cloud_msg);
 };

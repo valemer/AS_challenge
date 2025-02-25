@@ -1,10 +1,23 @@
 #include "LanternDetection.h"
 
+#include <cv_bridge/cv_bridge.h>
+#include <opencv2/opencv.hpp>
+#include <pcl_ros/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/conversions.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <geometry_msgs/PointStamped.h>
+#include <geometry_msgs/PoseArray.h>
+#include <visualization_msgs/MarkerArray.h>
+#include <cmath>
+
+
 LanternDetectionNode::LanternDetectionNode() :
 sync_(image_sub_, cloud_sub_, 10), tf_listener_(tf_buffer_),
-min_distance_(10.0),
+max_distance_same_detection_(10.0),
+min_distance_new_detection_(40.0),
 min_detections_(10),
-min_yellow_points_(50) {
+min_detection_points_in_img_(50){
 
     // Subscriptions
     image_sub_.subscribe(nh_, "/unity_ros/Quadrotor/Sensors/SemanticCamera/image_raw", 1);
@@ -14,12 +27,13 @@ min_yellow_points_(50) {
     // Publishers
     pub_world_coordinates_ = nh_.advertise<geometry_msgs::PointStamped>("/lantern_detection_world_coordinates", 1);
     pub_markers_ = nh_.advertise<visualization_msgs::MarkerArray>("/lantern_detection_marker_array", 1);
-    pub_all_lanterns_ = nh_.advertise<geometry_msgs::PoseArray>("/all_detected_lantern_locations", 1);  // New publisher
+    pub_all_lanterns_ = nh_.advertise<geometry_msgs::PoseArray>("/all_detected_lantern_locations", 1);
 
     // Params
-    nh_.getParam("lantern_detection/min_distance", min_distance_);
+    nh_.getParam("lantern_detection/max_distance_same_detection", max_distance_same_detection_);
+    nh_.getParam("lantern_detection/min_distance_new_detection", min_distance_new_detection_);
     nh_.getParam("lantern_detection/min_detections", min_detections_);
-    nh_.getParam("lantern_detection/min_yellow_points", min_yellow_points_);
+    nh_.getParam("lantern_detection/min_yellow_points", min_detection_points_in_img_);
 }
 
 double LanternDetectionNode::distance(const geometry_msgs::Point& a, const geometry_msgs::Point& b) {
@@ -29,17 +43,20 @@ double LanternDetectionNode::distance(const geometry_msgs::Point& a, const geome
 void LanternDetectionNode::updateTrackedObjects(const geometry_msgs::Point& detected_point) {
     bool matched = false;
     for (auto& [id, obj] : tracked_objects_) {
-        if (distance(obj.position, detected_point) < min_distance_) {
+        // Check if detection in same region
+        if (distance(obj.position, detected_point) < max_distance_same_detection_) {
             obj.detections.push_back(detected_point);
             obj.position = computeCentroid(obj.detections);
             matched = true;
             break;
         }
-        if (distance(obj.position, detected_point) < 40.0) {
+        // Check if too close to be considered as new detection
+        if (distance(obj.position, detected_point) < min_distance_new_detection_) {
             return;
         }
     }
 
+    // Add new detection
     if (!matched) {
         const auto new_id = tracked_objects_.size();
         tracked_objects_[new_id] = {detected_point, {detected_point}};
@@ -82,7 +99,7 @@ void LanternDetectionNode::publishMarkers() {
             marker.pose.position.y = obj.position.y;
             marker.pose.position.z = obj.position.z;
             marker.pose.orientation.w = 1.0;
-            marker.scale.x = 5.0; // Big red ball
+            marker.scale.x = 5.0;
             marker.scale.y = 5.0;
             marker.scale.z = 5.0;
             marker.color.r = 1.0;
@@ -92,8 +109,8 @@ void LanternDetectionNode::publishMarkers() {
             marker_array.markers.push_back(marker);
 
             geometry_msgs::Pose pose;
-            pose.position = obj.position;  // Copy the lantern location to the Pose
-            pose.orientation.w = 1.0;  // Default orientation
+            pose.position = obj.position;
+            pose.orientation.w = 1.0;
             all_lanterns_msg.poses.push_back(pose);
         }
     }
@@ -112,23 +129,27 @@ void LanternDetectionNode::callback(const sensor_msgs::ImageConstPtr& image_msg,
     }
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
-    pcl::fromROSMsg(*cloud_msg, *cloud);
+    fromROSMsg(*cloud_msg, *cloud);
 
     cv::Mat hsv_image;
-    cv::cvtColor(cv_image->image, hsv_image, cv::COLOR_BGR2HSV);
+    cvtColor(cv_image->image, hsv_image, cv::COLOR_BGR2HSV);
 
+    // segmentation color
     cv::Scalar lower_yellow(20, 100, 100);
     cv::Scalar upper_yellow(30, 255, 255);
 
+    // create mask based on 'yellow'
     cv::Mat mask;
-    cv::inRange(hsv_image, lower_yellow, upper_yellow, mask);
+    inRange(hsv_image, lower_yellow, upper_yellow, mask);
 
+    // detect yellow regions
     std::vector<std::vector<cv::Point>> contours;
-    cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
     double max_area = 0;
     std::vector<cv::Point> largest_contour;
 
+    // choose the biggest region
     for (const auto& contour : contours) {
         double area = cv::contourArea(contour);
         if (area > max_area) {
@@ -137,23 +158,19 @@ void LanternDetectionNode::callback(const sensor_msgs::ImageConstPtr& image_msg,
         }
     }
 
-    //ROS_INFO("Largest contour: %f", max_area);
-
-
-
-    if (max_area < min_yellow_points_)
+    if (max_area < min_detection_points_in_img_)
         return;
 
+    // project point of biggest point in 3d
     if (!largest_contour.empty()) {
         cv::Moments moments = cv::moments(largest_contour);
         if (moments.m00 > 0) {
             int x = static_cast<int>(moments.m10 / moments.m00);
             int y = static_cast<int>(moments.m01 / moments.m00);
-            cv::circle(cv_image->image, cv::Point(x, y), 5, CV_RGB(255, 0, 0), -1);
+            circle(cv_image->image, cv::Point(x, y), 5, CV_RGB(255, 0, 0), -1);
             ROS_DEBUG("Biggest yellow point at: (%d, %d)", x, y);
 
             int width = cloud->width;
-            int height = cloud->height;
             int index = y * width + x;
             if (index >= 0 && index < cloud->points.size()) {
                 pcl::PointXYZ pcl_point = cloud->points[index];

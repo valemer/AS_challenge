@@ -3,7 +3,7 @@ state_machine:
   min_dis_waypoint_back: 5.0
   max_dis_close_to_goal: 1.0
   max_speed_in_cave: 5.0
-  max_speed_out_cave:  15.0
+  max_speed_out_cave: 10.0
   lantern_search_num: 5
 
 takeoff:
