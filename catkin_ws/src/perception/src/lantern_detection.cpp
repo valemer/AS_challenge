@@ -1,4 +1,4 @@
-#include "LanternDetection.h"
+#include "lantern_detection.h"
 
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
