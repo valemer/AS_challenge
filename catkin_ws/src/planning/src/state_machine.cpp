@@ -1,6 +1,8 @@
 #include "state_machine.h"
 
 #include <thread>
+#include <eigen_conversions/eigen_msg.h>
+#include <fla_msgs/GlobalPath.h>
 #include <mav_msgs/common.h>
 #include <std_msgs/Bool.h>
 

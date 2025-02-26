@@ -1,30 +1,16 @@
 #pragma once
 
 #include <ros/ros.h>
-#include <thread>
 
-#include <mav_msgs/common.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/PointCloud2.h>
-#include <visualization_msgs/MarkerArray.h>
-#include <eigen_conversions/eigen_msg.h>
-#include <geometry_msgs/PoseArray.h> // For lantern detection
-#include <sensor_msgs/PointCloud2.h>
-#include <Eigen/Dense>
+#include <geometry_msgs/PoseArray.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <std_srvs/Empty.h>
 
-#include "fla_msgs/GlobalPath.h"
 #include "yaml-cpp/yaml.h"
-#include "ros/package.h"
-#include "std_srvs/Empty.h"
-#include "geometry_msgs/Point.h"
 
-//#include <pcl/point_cloud.h>
-//#include <pcl/point_types.h>
-#include <visualization_msgs/MarkerArray.h> // For RViz visualization
 
 // Define states for the state machine
 enum State {

@@ -49,7 +49,6 @@ class CaveExplorerNode:
         self.global_path_pub = rospy.Publisher("global_path", GlobalPath, queue_size=1)
         self.marker_pub = rospy.Publisher('sphere', Marker, queue_size=10)
 
-        rospy.loginfo("CaveExplorerNode initialized. Waiting for position update...")
         self.explore()
 
     def goal_point_callback(self, msg: GlobalPoint):

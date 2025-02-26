@@ -9,6 +9,8 @@ project(planning)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(yaml-cpp_DIR "/usr/lib/x86_64-linux-gnu/cmake/yaml-cpp")
+
 ## Find catkin macros and libraries
 find_package(catkin REQUIRED COMPONENTS
   eigen_catkin
@@ -19,18 +21,15 @@ find_package(catkin REQUIRED COMPONENTS
   mav_trajectory_generation_ros
   mav_visualization
   roslib
-  yaml_cpp_catkin
+  yaml-cpp REQUIRED
   fla_msgs
   geometry_msgs # Ensure geometry_msgs is included
 )
 
 find_package( PCL 1.7 REQUIRED )
-# [C/C++]>[General]>[Additional Include Directories]
 include_directories( ${PCL_INCLUDE_DIRS} )
 
-# [C/C++]>[Preprocessor]>[Preprocessor Definitions]
 add_definitions( ${PCL_DEFINITIONS} )
-# [Linker]>[General]>[Additional Library Directories]
 link_directories( ${PCL_LIBRARY_DIRS} )
 
 catkin_simple(ALL_DEPS_REQUIRED)
@@ -40,20 +39,24 @@ cs_add_executable(state_machine
   src/state_machine.cpp
 )
 
+target_link_libraries(state_machine
+    ${YAML_CPP_LIBRARIES}
+)
+
 cs_add_executable(trajectory_planner
   src/trajectory_planner_node.cc
 )
 
-cs_add_executable(cave_explorer
-        src/cave_explorer.cpp
-)
 
 ## Install and Export
 cs_install()
 cs_export()
 
 # [Linker]>[Input]>[Additional Dependencies]
-target_link_libraries( state_machine ${PCL_LIBRARIES} )
+target_link_libraries(state_machine
+        ${PCL_LIBRARIES}
+        ${YAML_CPP_LIBRARIES}
+)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)

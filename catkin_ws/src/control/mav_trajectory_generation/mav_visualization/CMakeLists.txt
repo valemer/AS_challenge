@@ -11,21 +11,21 @@ add_definitions(-std=c++11)
 # LIBRARIES #
 #############
 cs_add_library(${PROJECT_NAME}
-  src/marker_group.cpp
-  src/leica_marker.cpp
-  src/hexacopter_marker.cpp
+        src/marker_group.cpp
+        src/leica_marker.cpp
+        src/hexacopter_marker.cpp
 )
 
 ############
 # BINARIES #
 ############
 cs_add_executable(hexacopter_publisher
-  src/hexacopter_publisher.cpp
+        src/hexacopter_publisher.cpp
 )
 target_link_libraries(hexacopter_publisher ${PROJECT_NAME})
 
 cs_add_executable(leica_publisher
-  src/leica_publisher.cpp
+        src/leica_publisher.cpp
 )
 target_link_libraries(leica_publisher ${PROJECT_NAME})
 
