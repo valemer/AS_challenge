@@ -15,6 +15,7 @@ class BFS:
         self.start_point = None  # Start point for BFS
         self.goal_point = None  # Goal point for BFS
         self.current_position = None  # Current position of the drone
+        self.planning = False
 
         self.min_distance_between_nodes = 20.0  # Minimum distance between nodes
         self.max_distance_between_nodes = 30.0  # Maximum distance between nodes
@@ -30,21 +31,28 @@ class BFS:
 
     def start_point_callback(self, msg):
         self.start_point = np.array([msg.x, msg.y, msg.z])
-        rospy.loginfo("received start: {}".format(self.start_point))
+        rospy.logdebug("received start: {}".format(self.start_point))
         self.check_and_run_bfs()
 
     def goal_point_callback(self, msg):
         self.goal_point = np.array([msg.x, msg.y, msg.z])
-        rospy.loginfo("received goal: {}".format(self.goal_point))
+        rospy.logdebug("received goal: {}".format(self.goal_point))
         self.check_and_run_bfs()
 
     def check_and_run_bfs(self):
         if self.goal_point is None:
-            rospy.loginfo("goal missing for bfs")
+            rospy.logdebug("goal missing for bfs")
             return
         if self.start_point is None:
-            rospy.loginfo("start missing for bfs")
+            rospy.logdebug("start missing for bfs")
             return
+
+        if self.planning:
+            return
+        else:
+            self.planning = True
+
+        rospy.loginfo("Fly-Back PLanning started")
 
         start_index = self.find_closest_node(self.start_point)
         goal_index = self.find_closest_node(self.goal_point)
@@ -114,7 +122,7 @@ class BFS:
         self.adj[v].append(u)
 
     def find_path(self, start, goal):
-        rospy.loginfo("Finding path from {},{},{}, to {},{},{}".
+        rospy.logdebug("Finding path from {},{},{}, to {},{},{}".
                       format(self.start_point[0], self.start_point[1], self.start_point[2],
                              self.goal_point[0], self.goal_point[1], self.goal_point[2]))
 

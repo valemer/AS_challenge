@@ -1,5 +1,5 @@
 lantern_detection:
   min_detections: 10
   min_yellow_points: 200
-  max_distance_same_detection: 30.0
-  min_distance_new_detection: 40.0)
+  max_distance_same_detection: 40.0
+  min_distance_new_detection: 40.0

@@ -17,14 +17,13 @@ StateMachine::StateMachine() :
         hz_(10.0),
         current_velocity_(Eigen::Vector3d::Zero()),
         current_pose_(Eigen::Affine3d::Identity()),
-        point_cloud_(new pcl::PointCloud<pcl::PointXYZ>()),
         time_between_states_s(2),
-        min_dis_waypoint_back(5.0),
         max_dis_close_to_goal(1.0),
         max_speed_in_cave_(5.0),
         max_speed_out_cave_(15.0),
-        detected_lantern_count_(0),
-        lantern_search_num_(5)
+        detected_lanterns_(geometry_msgs::PoseArray()),
+        lantern_search_num_(5),
+        state_(TAKE_OFF)
 {
     // publisher
     pub_max_v_ = nh_.advertise<std_msgs::Float32>("/max_speed", 1);
@@ -36,7 +35,6 @@ StateMachine::StateMachine() :
 
     // subscriber
     sub_odom_ = nh_.subscribe("/current_state_est", 1, &StateMachine::uavOdomCallback, this);
-    sub_octomap_ = nh_.subscribe("/octomap_point_cloud_centers", 1, &StateMachine::octomapCallback, this);
     sub_all_lanterns_ = nh_.subscribe("/all_detected_lantern_locations", 1, &StateMachine::lanternCallback, this); // New subscriber for lantern locations
 
     // Main loop timer
@@ -48,7 +46,6 @@ StateMachine::StateMachine() :
 
     // params
     nh_.getParam("state_machine/time_between_states_s", time_between_states_s);
-    nh_.getParam("state_machine/min_dis_waypoint_back", min_dis_waypoint_back);
     nh_.getParam("state_machine/max_dis_close_to_goal", max_dis_close_to_goal);
     nh_.getParam("state_machine/max_speed_in_cave", max_speed_in_cave_);
     nh_.getParam("state_machine/max_speed_out_cave", max_speed_out_cave_);
@@ -59,15 +56,14 @@ void StateMachine::uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom) {
     tf::poseMsgToEigen(odom->pose.pose, current_pose_);
 }
 
-void StateMachine::octomapCallback(const sensor_msgs::PointCloud2::ConstPtr& msg) {
-    fromROSMsg(*msg, *point_cloud_);
-}
-
-// Callback to track detected lanterns
 void StateMachine::lanternCallback(const geometry_msgs::PoseArray::ConstPtr& msg) {
-    if (detected_lantern_count_ < static_cast<int>(msg->poses.size())) {
-        detected_lantern_count_ = static_cast<int>(msg->poses.size()); // Get the number of detected lanterns
-        ROS_INFO("Detected lanterns: %d", detected_lantern_count_);
+    if (detected_lanterns_.poses.size() < static_cast<int>(msg->poses.size())) {
+        detected_lanterns_ = geometry_msgs::PoseArray();
+        for (const auto& pose : msg->poses)
+        {
+            detected_lanterns_.poses.push_back(pose);
+        }
+        ROS_INFO("Detected lanterns: %lu", detected_lanterns_.poses.size());
     }
 }
 
@@ -95,7 +91,7 @@ void StateMachine::mainLoop(const ros::TimerEvent& t) {
 }
 
 bool StateMachine::closeToGoal() {
-    double dist = sqrt(pow(current_pose_.translation()[0] - current_goal_[0], 2)
+    const double dist = sqrt(pow(current_pose_.translation()[0] - current_goal_[0], 2)
                      + pow(current_pose_.translation()[1] - current_goal_[1], 2)
                      + pow(current_pose_.translation()[2] - current_goal_[2], 2));
    return dist < max_dis_close_to_goal;
@@ -188,11 +184,10 @@ void StateMachine::explore() {
         msg.data = true;
         pub_controll_planner.publish(msg);
         paths_sent_ = true;
-    } else if (detected_lantern_count_ >= lantern_search_num_) {
+    } else if (detected_lanterns_.poses.size() >= lantern_search_num_) {
         paths_sent_ = false;
         state_ = FLY_BACK;
     }
-
 }
 
 void StateMachine::flyBack() {
@@ -276,6 +271,11 @@ void StateMachine::land() {
     } else if (closeToGoal()) {
         paths_sent_ = false;
         state_ = STOP;
+        ROS_INFO("Found all lanterns and reached starting point");
+        for (int i = 0; i < detected_lanterns_.poses.size(); ++i) {
+            const auto pos = detected_lanterns_.poses[i].position;
+            ROS_INFO("Lantern %i found at x:%f y:%f z:%f", i + 1, pos.x, pos.y, pos.z);
+        }
     }
 }
 
