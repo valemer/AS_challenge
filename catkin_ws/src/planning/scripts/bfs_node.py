@@ -18,7 +18,7 @@ class BFS:
         self.planning = False
 
         self.min_distance_between_nodes = 20.0  # Minimum distance between nodes
-        self.max_distance_between_nodes = 30.0  # Maximum distance between nodes
+        self.max_distance_between_nodes = 35.0  # Maximum distance between nodes
 
         rospy.init_node('bfs_node', anonymous=True)
 
