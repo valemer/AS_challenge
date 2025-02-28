@@ -1,28 +1,25 @@
 # AS_challenge
 
 
+# AS_challenge
+
 ```
 AS_challenge/
 ├── catkin_ws/
 │   ├── src/
-│   │   ├── planning/          # cave exploration by sampling, bfs for planning the return, trajectory and geometric planner
-│   │   │   ├── launch/         
-│   │   │   ├── scripts/       
-│   │   │   └── src/           
-│   │   │
-│   │   ├── perception/        # Perception algorithms for lantern and junction detection
-│   │   │   ├── src/          
-│   │   │   └── include/       
-│   │   │
-│   │   ├── simulation/        # Simulation environment
-│   │   │   └── launch/        
-│   │   │
-│   │   └── config_rviz/       # Configuration files for RVIZ visualization
-│   │
+│   │   ├── planning/
+│   │   ├── perception/
+│   │   ├── simulation/
+│   │   └── config_rviz/
 │   ├── build/                 
 │   └── devel/                 
 ```
 
+**Components:**
+* **planning**: Cave exploration algorithm, BFS for return planning, trajectory generation and geometric planner
+* **perception**: Pointcloud generation, junction and lantern detection
+* **simulation**: Cave environment simulation
+* **config_rviz**: Configuration files for visualization tools
 
 
 ## Install required pkgs, build ws, and unzip sim
