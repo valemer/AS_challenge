@@ -246,7 +246,6 @@ catkin_install_python(PROGRAMS
   scripts/bfs_node.py
   scripts/manual_control.py
   scripts/cave_explorer_node.py
-  scripts/exploration_manager.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

@@ -36,7 +36,7 @@ JunctionDetection::JunctionDetection() :
 }
 
 JunctionDetection::~JunctionDetection() {
-    if (latest_octree_) delete latest_octree_;
+    delete latest_octree_;
 }
 
 void JunctionDetection::controlCallback(const std_msgs::Bool::ConstPtr& msg) {
@@ -51,9 +51,9 @@ void JunctionDetection::controlCallback(const std_msgs::Bool::ConstPtr& msg) {
 void JunctionDetection::uavOdomCallback(const nav_msgs::Odometry::ConstPtr& odom) {
     current_pose_ = odom->pose.pose;
 
-    // Set cave enty point if not set and node running
+    // Set cave enty point if not set and node running (node starts running at entry)
     if (cave_entry_.x() == 0.0 && running_) {
-        cave_entry_<<  current_pose_.position.x, current_pose_.position.y, current_pose_.position.z;
+        cave_entry_ << current_pose_.position.x, current_pose_.position.y, current_pose_.position.z;
     }
 }
 
@@ -99,7 +99,6 @@ void JunctionDetection::detectJunctionsAndPublish(octomap::OcTree& tree) {
     const float resolution = tree.getResolution();
 
     // Collect frontier points ('free' with unknown 'neighbor')
-    #pragma omp parallel for
     for (auto it = tree.begin_leafs(); it != tree.end_leafs(); ++it) {
         if (tree.isNodeOccupied(*it)) continue;
 
@@ -122,25 +121,16 @@ void JunctionDetection::detectJunctionsAndPublish(octomap::OcTree& tree) {
             }
         }
 
-        if (isFrontier) {
-            #pragma omp critical
-            {
-                all_junctions->push_back({pt.x(), pt.y(), pt.z()});
-            }
-        }
+        if (isFrontier) all_junctions->push_back({pt.x(), pt.y(), pt.z()});
     }
 
     // Filter by num of neighbors in radius to avoid noise
     pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
     kdtree.setInputCloud(all_junctions);
 
-    #pragma omp parallel for
     for (size_t i = 0; i < all_junctions->size(); ++i) {
         if (hasEnoughNeighbors(kdtree, (*all_junctions)[i], search_radius_, min_neighbors_)) {
-            #pragma omp critical
-            {
-                filtered_junctions->push_back((*all_junctions)[i]);
-            }
+            filtered_junctions->push_back((*all_junctions)[i]);
         }
     }
 
