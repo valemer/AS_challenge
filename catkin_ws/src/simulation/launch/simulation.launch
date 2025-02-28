@@ -64,8 +64,10 @@
   <node pkg="tf2_ros" type="static_transform_publisher"
         name="depth_camera_to_body"      args="0 0 0 0 0 0 /true_body /depth_camera" />
 
-
-  <include file="$(find perception)/launch/perception.launch" />
+  <!-- Start Mapping -->
   <include file="$(find mapping)/launch/octomap_server.launch" />
-  <!-- <include file="$(find global_planner)/launch/rrt_star_interactive.launch" /> -->
+
+  <!-- Start RVIZ -->
+  <include file="$(find config_rviz)/launch/rviz.launch" />
+
 </launch>
