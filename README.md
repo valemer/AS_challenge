@@ -15,11 +15,19 @@ AS_challenge/
 │   └── devel/                 
 ```
 
-**Components:**
-* **planning**: Cave exploration algorithm, BFS for return planning, trajectory generation and geometric planner
-* **perception**: Pointcloud generation, junction and lantern detection
-* **simulation**: Cave environment simulation
-* **config_rviz**: Configuration files for visualization tools
+## System Components
+
+`planning`
+> Cave exploration algorithm, BFS planning, trajectory generation
+
+`perception` 
+> Pointcloud processing, junction and lantern detection
+
+`simulation`
+> Cave environment physics and rendering
+
+`config_rviz`
+> Visualization tools configuration
 
 
 ## Install required pkgs, build ws, and unzip sim
