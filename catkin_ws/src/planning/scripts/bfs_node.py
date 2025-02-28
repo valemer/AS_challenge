@@ -29,17 +29,35 @@ class BFS:
         self.planned_path_pub = rospy.Publisher('/global_path', GlobalPath, queue_size=10)
         self.graph_visualization_pub = rospy.Publisher('/graph_visualization', MarkerArray, queue_size=10)
 
-    def start_point_callback(self, msg):
+    def start_point_callback(self, msg: Point) -> None:
+        """
+        Callback for the `/fly_back_start_points` topic.
+        Sets the start point for BFS and initiates planning if both start and goal are received.
+
+        Args:
+            msg (Point): A ROS Point message containing the desired start coordinates.
+        """
         self.start_point = np.array([msg.x, msg.y, msg.z])
         rospy.logdebug("received start: {}".format(self.start_point))
         self.check_and_run_bfs()
 
-    def goal_point_callback(self, msg):
+    def goal_point_callback(self, msg: Point) -> None:
+        """
+        Callback for the `/fly_back_goal_points` topic.
+        Sets the goal point for BFS and initiates planning if both start and goal are received.
+
+        Args:
+            msg (Point): A ROS Point message containing the desired goal coordinates.
+        """
         self.goal_point = np.array([msg.x, msg.y, msg.z])
         rospy.logdebug("received goal: {}".format(self.goal_point))
         self.check_and_run_bfs()
 
-    def check_and_run_bfs(self):
+    def check_and_run_bfs(self) -> None:
+        """
+        Checks if both start and goal points are available. If so, and if not currently planning,
+        triggers the BFS search and path construction.
+        """
         if self.goal_point is None:
             rospy.logdebug("goal missing for bfs")
             return
@@ -80,7 +98,16 @@ class BFS:
         # 5) Finally, publish the path
         self.publish_path(poses_with_orientation)
 
-    def find_closest_node(self, point):
+    def find_closest_node(self, point: np.ndarray) -> int:
+        """
+        Finds the index of the node in the visited_locations that is closest to the given 3D point.
+
+        Args:
+            point (numpy.ndarray): A 3D coordinate [x, y, z].
+
+        Returns:
+            int: The index of the closest node in visited_locations. Returns None if visited_locations is empty.
+        """
         min_dist = float('inf')
         closest_index = None
         for i, location in enumerate(self.visited_locations):
@@ -90,7 +117,15 @@ class BFS:
                 closest_index = i
         return closest_index
 
-    def current_position_callback(self, msg):
+    def current_position_callback(self, msg: Odometry) -> None:
+        """
+        Callback for the `/current_state_est` topic.
+        Updates the current position of the drone and adds a new node (visited location) to the graph
+        if the drone is sufficiently far from all existing nodes.
+
+        Args:
+            msg (Odometry): A ROS Odometry message containing the drone's current pose.
+        """
         self.current_position = np.array([
             msg.pose.pose.position.x,
             msg.pose.pose.position.y,
@@ -104,7 +139,12 @@ class BFS:
             self.update_graph()
             self.publish_graph_visualization()
 
-    def update_graph(self):
+    def update_graph(self) -> None:
+        """
+        Updates the adjacency list for the graph by adding edges between the newly added node and any
+        existing nodes within the maximum allowed distance. Also ensures the newly added node connects
+        to the immediate predecessor.
+        """
         current_index = len(self.visited_locations) - 1
         self.adj.setdefault(current_index, [])
 
@@ -117,11 +157,29 @@ class BFS:
             if np.linalg.norm(self.visited_locations[current_index] - self.visited_locations[i]) <= self.max_distance_between_nodes:
                 self.add_edge(current_index, i)
 
-    def add_edge(self, u, v):
+    def add_edge(self, u, v) -> None:
+        """
+        Adds an undirected edge between nodes u and v in the adjacency list.
+
+        Args:
+            u (int): Index of the first node.
+            v (int): Index of the second node.
+        """
         self.adj[u].append(v)
         self.adj[v].append(u)
 
-    def find_path(self, start, goal):
+    def find_path(self, start: int, goal: int) -> list:
+        """
+        Use BFS algorithm on the adjacency lists of nodes to find path from start to goal.
+         Args:
+            start (int): The index of the start node in visited_locations.
+            goal (int): The index of the goal node in visited_locations.
+
+        Returns:
+            list: A list of node indices representing the path from the start node to the goal node (inclusive).
+                  If no path is found, the returned list will represent a partial path or a direct fallback.
+ 
+        """
         rospy.logdebug("Finding path from {},{},{}, to {},{},{}".
                       format(self.start_point[0], self.start_point[1], self.start_point[2],
                              self.goal_point[0], self.goal_point[1], self.goal_point[2]))
@@ -132,19 +190,21 @@ class BFS:
         visited = {k: False for k in self.adj.keys()}
         parent = {k: None for k in self.adj.keys()}
 
+        #Start bfs from the start node
         q.append(start)
         visited[start] = True
 
         while q:
-            curr = q.popleft()
-            if curr == goal:
+            curr = q.popleft() # Get next node from queue
+            if curr == goal:    #Check if we are at goal
                 break
 
+            #Processs all neighbours
             for neighbor in self.adj.get(curr, []):
-                if not visited[neighbor]:
-                    visited[neighbor] = True
+                if not visited[neighbor]: # If we did not visit before
+                    visited[neighbor] = True  
                     parent[neighbor] = curr
-                    q.append(neighbor)
+                    q.append(neighbor) # Add queue to visit later
 
         # Reconstruct path
         path = []
@@ -157,11 +217,18 @@ class BFS:
         rospy.loginfo("Path found in {} seconds".format((rospy.Time.now() - timer).to_sec()))
         return path
 
-    def compute_orientations(self, path_points):
+    def compute_orientations(self, path_points: list) -> list:
         """
-        Given a list of 3D points (as Nx3 numpy arrays), compute a PoseStamped
-        for each point with orientation facing the next point in the list.
-        For the last point, reuse the previous orientation.
+        Given a list of 3D points, compute a list of GlobalPoints (position and orientation).
+
+        The orientation (yaw) is calculated to face toward the next point in the list.
+        For the last point, the orientation is the same as the previous point to ensure continuity.
+
+        Args:
+            path_points (list): A list of 3D coordinates (numpy arrays).
+
+        Returns:
+            list: A list of GlobalPoint objects with orientation in radians, plus velocity and acceleration fields.
         """
         poses = []
         for i in range(len(path_points)):
@@ -194,10 +261,14 @@ class BFS:
 
         return poses
 
-    def publish_path(self, poses):
+    def publish_path(self, poses: list) -> None:
         """
-        1) Visualize the entire path as a blue LINE_STRIP.
-        2) Publish PoseStamped waypoints in batches.
+        Publishes the planned path in two forms:
+          1) As a blue LINE_STRIP in a MarkerArray for visualization.
+          2) As a series of GlobalPath messages (in small batches) for the drone to follow.
+
+        Args:
+            poses (list): A list of GlobalPoint messages representing the full path.
         """
         if not poses:
             rospy.logwarn("No path poses to publish.")
@@ -263,7 +334,12 @@ class BFS:
                     break
                 rospy.sleep(0.1)  # Check every 100 ms
 
-    def publish_graph_visualization(self):
+    def publish_graph_visualization(self) -> None:
+        """
+        Publishes a MarkerArray representing the nodes and edges of the graph:
+          - Nodes as green spheres.
+          - Edges as red LINE_STRIPs.
+        """
         marker_array = MarkerArray()
 
         # Add nodes
