@@ -73,7 +73,7 @@ void StateMachine::mainLoop(const ros::TimerEvent& t) {
         case TAKE_OFF:
             takeOff();
             break;
-        case GO:
+        case FLY_TO_CAVE:
             flyToCave();
             break;
         case EXPLORE:
@@ -116,7 +116,7 @@ void StateMachine::takeOff() {
   } else if (closeToGoal()) {
     ROS_INFO_NAMED("state_machine", "Close to take-off goal!");
     paths_sent_ = false;
-    state_ = GO;
+    state_ = FLY_TO_CAVE;
     std::this_thread::sleep_for(std::chrono::seconds(time_between_states_s));
   }
 }
@@ -208,9 +208,9 @@ void StateMachine::flyBack() {
         start_point.z = current_pose_.translation().z();
         pub_fly_back_start_points_.publish(start_point);
 
-        goal_point.x = path_back_.front()[0];
-        goal_point.y = path_back_.front()[1];
-        goal_point.z = path_back_.front()[2];
+        goal_point.x = path_back_.back()[0];
+        goal_point.y = path_back_.back()[1];
+        goal_point.z = path_back_.back()[2];
 
         pub_fly_back_goal_points_.publish(goal_point);
 
@@ -219,34 +219,9 @@ void StateMachine::flyBack() {
         paths_sent_ = true;
     }
 
-    static bool entrance_goal_reached = false;
-
     if (closeToGoal()) {
-        if (!entrance_goal_reached) {
-            entrance_goal_reached = true;
-
-            fla_msgs::GlobalPath global_path;
-            fla_msgs::GlobalPoint global_point;
-
-            for (const auto& point : path_back_) {
-                global_point.point.x = point[0];
-                global_point.point.y = point[1];
-                global_point.point.z = point[2];
-                global_point.orientation = static_cast<float>(point[3]);
-                global_point.velocity = -1;
-                global_point.acceleration = -1;
-                global_path.points.push_back(global_point);
-            }
-            global_path.points.back().acceleration = 0.0;
-            global_path.points.back().velocity = 0.0;
-
-            pub_global_path_.publish(global_path);
-
-            current_goal_ << global_point.point.x, global_point.point.y, global_point.point.z;
-        } else {
-            state_ = LAND;
-            paths_sent_ = false;
-        }
+        state_ = LAND;
+        paths_sent_ = false;
     }
 }
 

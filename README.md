@@ -1,16 +1,21 @@
 # AS_challenge
 
 
-# AS_challenge
+This project requires ROS Noetic and is tested on Ubuntu 20.04. 
+If you face problems during the simulation, please make sure to close other applications as the project makes use of parallel nodes.
+
+The structure of the packages is:
 
 ```
 AS_challenge/
 ├── catkin_ws/
 │   ├── src/
-│   │   ├── planning/
+│   │   ├── control/
+│   │   ├── mapping/
 │   │   ├── perception/
+│   │   ├── planning/
 │   │   ├── simulation/
-│   │   └── config_rviz/          
+│   │   └── urilities/          
 ```
 
 ## System Components

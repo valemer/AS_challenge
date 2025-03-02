@@ -31,6 +31,10 @@ class CaveExplorerNode:
         self.max_planning_distance = rospy.get_param("~max_planning_distance", 55.0)
         self.replanning_distance = rospy.get_param("~replanning_distance", 5.0)
         self.replanning_freq = rospy.get_param("~replanning_freq", 10.0)
+        self.distance_from_start_value = rospy.get_param("~distance_from_start_value", 3.0)
+        self.distance_to_goal_value = rospy.get_param("~distance_to_goal_value", 5.0)
+        self.max_radius_value = rospy.get_param("~max_radius_value", 18.0)
+
 
         self.current_position = None
         self.current_orientation = np.eye(3)
@@ -93,22 +97,16 @@ class CaveExplorerNode:
         Args:
             msg (PointCloud2): The received point cloud message.
         """
-        if self.kd_tree is not None:
+        if self.kd_tree is not None or self.current_position is None:
             return
 
         full_cloud = np.array([[p[0], p[1], p[2]] for p in pc2.read_points(msg, skip_nans=True)])
 
-        filtered_cloud = []
+        # Filter point cloud to only include points in a region around the drone
+        max_distance = 2 * self.max_planning_distance
 
-        if self.current_position is not None:
-            # Filter point cloud to only include points in a region around the drone
-            forward_vector = np.dot(self.current_orientation, np.array([1.0, 0.0, 0.0]))
-            for point in full_cloud:
-                relative_position = point - self.current_position
-                if (np.dot(relative_position, forward_vector) > -50 and
-                        abs(np.dot(relative_position, np.array([0.0, 1.0, 0.0]))) <= 100.0 and
-                        abs(np.dot(relative_position, np.array([0.0, 0.0, 1.0]))) <= 100.0):
-                    filtered_cloud.append(point)
+        filtered_cloud = [point for point in full_cloud
+                          if np.linalg.norm(point - self.current_position) <= max_distance]
 
         # Build a KD-Tree for fast nearest-neighbor lookups
         if len(filtered_cloud) > 0:
@@ -374,9 +372,7 @@ class CaveExplorerNode:
             best_node['radius'] = self.calculate_max_radius(best_node["position"])
             total_distance = 0.0
 
-            # ----------------------
-            # TIMING THE INNER LOOP
-            # ----------------------
+            # timing the inner loop
             loop_start_time = time.time()
 
             # Inner loop
@@ -439,7 +435,9 @@ class CaveExplorerNode:
                     
                     
                     # Heuristic function: reward progress, goal approach, and open space
-                    value = (3 * distance_from_start) - (5 * distance_to_goal) + (18 * max_radius)
+                    value = ((self.distance_from_start_value * distance_from_start)
+                             - (self.distance_to_goal_value * distance_to_goal)
+                             + (self.max_radius_value * max_radius))
 
                     if value > best_value:
                         best_value = value

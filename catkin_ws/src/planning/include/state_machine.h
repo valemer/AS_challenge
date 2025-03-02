@@ -12,7 +12,7 @@
 // Define states for the state machine
 enum State {
     TAKE_OFF = 0,
-    GO = 1,
+    FLY_TO_CAVE = 1,
     EXPLORE = 2,
     FLY_BACK = 3,
     LAND = 4,
