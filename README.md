@@ -1,7 +1,7 @@
 # AS_challenge
 
 
-This project requires ROS Noetic and is tested on Ubuntu 20.04. 
+This project requires ROS Noetic (installation in build script included) and is tested on Ubuntu 20.04. 
 If you face problems during the simulation, please make sure to close other applications as the project makes use of parallel nodes.
 
 The structure of the packages is:
@@ -21,7 +21,7 @@ AS_challenge/
 ## System Components
 
 `planning`
-> Cave exploration algorithm, BFS planning (used for flying back after finding all lanterns), trajectory generation
+> State Machine, Cave exploration algorithm, BFS planning (used for flying back after finding all lanterns), trajectory generation
 
 `perception` 
 > Pointcloud processing, junction and lantern detection
@@ -81,3 +81,13 @@ starts the simulation, RVIZ, and manual control.
 roslaunch simulation all_in_one_with_manual_control.launch
 ```
 
+## Replay recorded Rosbag
+If you have problems (e.g. limited computing power) and still want to see the result,
+you can download the rosbag by using the following link
+https://syncandshare.lrz.de/getlink/fiBG6VPmpritnwRtJwVUGR/rosbag.zip.
+When you replay it, first start RVIZ as described above and in another terminal start the rosbag with speed=5x:
+```
+cd catkin_ws
+. devel/setup.bash
+rosbag play -r 5 ../rosbag.bag 
+```
