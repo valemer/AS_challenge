@@ -90,3 +90,5 @@ cd catkin_ws
 . devel/setup.bash
 rosbag play -r 5 ../rosbag.bag 
 ```
+A detailed rosbag can be downloaded here https://syncandshare.lrz.de/getlink/fiBG6VPmpritnwRtJwVUGR/rosbag.zip 
+but be aware that its 9.5 GB.
