@@ -73,7 +73,7 @@ void StateMachine::mainLoop(const ros::TimerEvent& t) {
         case TAKE_OFF:
             takeOff();
             break;
-        case GO:
+        case FLY_TO_CAVE:
             flyToCave();
             break;
         case EXPLORE:
@@ -116,7 +116,7 @@ void StateMachine::takeOff() {
   } else if (closeToGoal()) {
     ROS_INFO_NAMED("state_machine", "Close to take-off goal!");
     paths_sent_ = false;
-    state_ = GO;
+    state_ = FLY_TO_CAVE;
     std::this_thread::sleep_for(std::chrono::seconds(time_between_states_s));
   }
 }
