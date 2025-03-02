@@ -83,7 +83,7 @@ roslaunch simulation all_in_one_with_manual_control.launch
 
 ## Replay recorded Rosbag
 If you have problems (e.g. limited computing power) and still want to see the result,
-you can play the rosbag. We used a strong compression which causes some message losses.
+you can play the rosbag. We used a strong compression which causes some message losses but the drones behavior is still observable.
 When you replay it, first start RVIZ as described above and in another terminal start the rosbag with speed=5x:
 ```
 cd catkin_ws
