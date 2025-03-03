@@ -83,12 +83,14 @@ roslaunch simulation all_in_one_with_manual_control.launch
 
 ## Replay recorded Rosbag
 If you have problems (e.g. limited computing power) and still want to see the result,
-you can play the rosbag. We used a strong compression which causes some message losses but the drones behavior is still observable.
+we provide two rosbags with different quality.
 When you replay it, first start RVIZ as described above and in another terminal start the rosbag with speed=5x:
 ```
 cd catkin_ws
 . devel/setup.bash
 rosbag play -r 5 ../rosbag.bag 
 ```
-A detailed rosbag can be downloaded here https://syncandshare.lrz.de/getlink/fiBG6VPmpritnwRtJwVUGR/rosbag.zip 
+A detailed rosbag can be downloaded here https://syncandshare.lrz.de/getlink/fiFr8TK8RuH9zs1QMqxHU4/high_quality_rosbag.zip
 but be aware that its 9.5 GB.
+
+A rosbag with lower quality here https://syncandshare.lrz.de/getlink/fiQvySREkxZbz2UwGsbicV/low_quality_rosbag.bag (~1.5 GB).
