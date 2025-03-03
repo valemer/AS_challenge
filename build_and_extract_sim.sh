@@ -23,12 +23,12 @@ cd ./catkin_ws
 catkin build
 cd ../
 
+sudo chmod +x ./Simulation.zip 
+
 # Check if Simulation.x86_64 already exists
 git lfs pull
 if [ ! -f ./catkin_ws/devel/lib/simulation/Simulation.x86_64 ]; then
   echo "Simulation.x86_64 not found. Unzipping simulation files..."
-  
-  chmod +x Simulation.zip 
 
   # Unzip simulation files
   mkdir -p ./tmp/extracted
