@@ -10,6 +10,8 @@ sudo apt update
 sudo apt install ros-noetic-desktop-full
 sudo apt install python3-rosdep python3-rosinstall python3-rosinstall-generator python3-wstool build-essential python3-catkin-tools
 
+source /opt/ros/noetic/setup.bash
+
 # install required pkgs
 sudo apt install -y ros-noetic-depth-image-proc ros-noetic-octomap ros-noetic-octomap-server \
   ros-noetic-pcl-conversions git-lfs unzip python3-pip
@@ -25,6 +27,8 @@ cd ../
 git lfs pull
 if [ ! -f ./catkin_ws/devel/lib/simulation/Simulation.x86_64 ]; then
   echo "Simulation.x86_64 not found. Unzipping simulation files..."
+  
+  chmod +x Simulation.zip 
 
   # Unzip simulation files
   mkdir -p ./tmp/extracted
